@@ -1,0 +1,47 @@
+@page "/admin/dashboard"
+@using SportChain.Shared.Enums
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary">📊 Dashboard Quản Trị Toàn Chuỗi</h2>
+            <p class="text-muted">Tổng quan doanh thu, tỷ lệ lấp đầy sân và giám sát các chi nhánh trên toàn quốc</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary"><i class="bi bi-file-earmark-excel"></i> Xuất Excel</button>
+            <button class="btn btn-primary"><i class="bi bi-file-earmark-pdf"></i> Xuất Báo Cáo PDF</button>
+        </div>
+    </div>
+
+    <!-- Hàng thống kê tổng quan -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-primary text-white p-3">
+                <h5>Tổng Doanh Thu Chuỗi</h5>
+                <h3 class="fw-bold">1,250,000,000 đ</h3>
+                <small>↑ 12% so với tháng trước</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-success text-white p-3">
+                <h5>Tỷ Lệ Lấp Đầy TB</h5>
+                <h3 class="fw-bold">78.5%</h3>
+                <small>Giờ cao điểm đạt 95%</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-warning text-dark p-3">
+                <h5>Tổng Số Chi Nhánh</h5>
+                <h3 class="fw-bold">8 Cơ Sở</h3>
+                <small>2 cơ sở đang chờ duyệt</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-danger text-white p-3">
+                <h5>Tỷ Lệ Vắng Mặt (No-Show)</h5>
+                <h3 class="fw-bold">3.2%</h3>
+                <small>↓ 1.5% nhờ cơ chế cọc 15p</small>
+            </div>
+        </div>
+    </div>
+</div>

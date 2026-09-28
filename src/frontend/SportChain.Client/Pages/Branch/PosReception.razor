@@ -1,0 +1,51 @@
+@page "/branch/pos"
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-success">🎟️ Quầy Lễ Tân (POS Desk) - Check-in & Bán Hàng</h2>
+            <p class="text-muted">Tiếp nhận khách vãng lai, quét mã QR vào sân và ghi nhận dịch vụ phát sinh</p>
+        </div>
+        <div class="badge bg-success fs-6 p-2">Chi Nhánh: Quận 7 - Sân SportChain VIP</div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Khung quét mã QR / Check-in -->
+        <div class="col-md-5">
+            <div class="card shadow-sm border-0 p-3">
+                <h5 class="fw-bold mb-3"><i class="bi bi-qr-code-scan"></i> Quét Vé Check-in Nhanh</h5>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control form-control-lg" placeholder="Nhập mã đơn hoặc quét QR..." />
+                    <button class="btn btn-success px-4">Xác Nhận</button>
+                </div>
+                <div class="alert alert-info">
+                    <small>Thời gian check-in hợp lệ: <strong>Trước giờ chơi 15 phút đến Sau giờ chơi 15 phút</strong>. Quá 15 phút hệ thống sẽ tự động hủy đơn No-show.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Khung bán dịch vụ phát sinh (Nước uống, Vợt) -->
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0 p-3">
+                <h5 class="fw-bold mb-3"><i class="bi bi-cart3"></i> Dịch Vụ Phát Sinh (Nước, Thuê Vợt, Bóng)</h5>
+                <div class="row g-2">
+                    <div class="col-4">
+                        <button class="btn btn-outline-secondary w-100 p-2 text-start">
+                            <strong>Nước Pocari</strong><br/><span class="text-primary">15,000 đ</span>
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-outline-secondary w-100 p-2 text-start">
+                            <strong>Thuê Vợt Yonex</strong><br/><span class="text-primary">30,000 đ</span>
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-outline-secondary w-100 p-2 text-start">
+                            <strong>Bóng Tennis Đunlop</strong><br/><span class="text-primary">20,000 đ</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,35 @@
+<div class="position-fixed bottom-0 end-0 m-4" style="z-index: 1050;">
+    <!-- Nút mở Chat AI -->
+    <button class="btn btn-primary rounded-circle shadow-lg p-3 d-flex align-items-center justify-content-center" 
+            style="width: 60px; height: 60px;" 
+            @onclick="ToggleChat">
+        <i class="bi bi-chat-dots-fill fs-4 text-white">🤖</i>
+    </button>
+
+    @if (IsOpen)
+    {
+        <!-- Khung chat popup -->
+        <div class="card shadow-lg border-0 position-absolute bottom-100 end-0 mb-3" style="width: 380px; height: 500px; display: flex; flex-direction: column;">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <span class="fw-bold">🤖 Trợ Lý AI Đặt Sân Thông Minh</span>
+                <button type="button" class="btn-close btn-close-white" @onclick="ToggleChat"></button>
+            </div>
+            <div class="card-body overflow-auto flex-grow-1 p-3">
+                <div class="alert alert-light border mb-2">
+                    <small><strong>Trợ lý AI:</strong> Chào bạn! Tôi có thể tra cứu ca sân trống, báo giá hoặc kiểm tra vé đặt của bạn theo thời gian thực.</small>
+                </div>
+            </div>
+            <div class="card-footer bg-white border-top p-2">
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Hỏi AI: 'Tối mai còn sân cầu lông nào...'" />
+                    <button class="btn btn-primary">Gửi</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool IsOpen = false;
+    private void ToggleChat() => IsOpen = !IsOpen;
+}

@@ -1,0 +1,59 @@
+@page "/booking/matrix"
+@using SportChain.Shared.Enums
+
+<div class="container-fluid p-4">
+    <!-- Tiêu đề & Bộ lọc -->
+    <div class="row align-items-center mb-4">
+        <div class="col-md-6">
+            <h2 class="fw-bold text-primary">🏟️ Ma Trận Lịch Đặt Sân Trực Quan</h2>
+            <p class="text-muted">Chọn ca 1 tiếng liên tiếp, hệ thống khóa giữ chỗ cọc 15 phút thời gian thực</p>
+        </div>
+        <div class="col-md-6 d-flex justify-content-end gap-3">
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge" style="background-color: #22c55e;">&nbsp;</span> <small>Trống</small>
+                <span class="badge" style="background-color: #eab308;">&nbsp;</span> <small>Đang giữ (15p)</small>
+                <span class="badge" style="background-color: #ef4444;">&nbsp;</span> <small>Đã đặt</small>
+                <span class="badge" style="background-color: #3b82f6;">&nbsp;</span> <small>Đang chơi</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bảng ma trận Timeline -->
+    <div class="card shadow-sm border-0 p-3">
+        <div class="table-responsive">
+            <table class="table table-bordered text-center align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 150px;">Tên Sân</th>
+                        <th>06:00 - 07:00</th>
+                        <th>07:00 - 08:00</th>
+                        <th>17:00 - 18:00</th>
+                        <th>18:00 - 19:00 (Vàng)</th>
+                        <th>19:00 - 20:00 (Vàng)</th>
+                        <th>20:00 - 21:00 (Vàng)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="fw-bold text-start">Sân Cầu Lông 1</td>
+                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">100k</button></td>
+                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">100k</button></td>
+                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #ef4444;" disabled>Đã Đặt</button></td>
+                        <td><button class="btn btn-sm w-100 text-dark" style="background-color: #eab308;">Đang Giữ</button></td>
+                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">150k</button></td>
+                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">150k</button></td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold text-start">Sân Cầu Lông 2</td>
+                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">100k</button></td>
+                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">100k</button></td>
+                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">120k</button></td>
+                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #3b82f6;">Đang Chơi</button></td>
+                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #ef4444;" disabled>Đã Đặt</button></td>
+                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">150k</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
