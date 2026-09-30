@@ -5,6 +5,7 @@ namespace SportChain.WebApi.Services;
 public interface IQrCodeService
 {
     string GenerateQrBase64(string payload);
+    string GenerateQrCodeBase64(string payload);
 }
 
 public class QrCodeService : IQrCodeService
@@ -17,4 +18,6 @@ public class QrCodeService : IQrCodeService
         byte[] qrCodeBytes = qrCode.GetGraphic(20);
         return $"data:image/png;base64,{Convert.ToBase64String(qrCodeBytes)}";
     }
+
+    public string GenerateQrCodeBase64(string payload) => GenerateQrBase64(payload);
 }

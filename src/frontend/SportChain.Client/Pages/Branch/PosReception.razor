@@ -1,51 +1,723 @@
 @page "/branch/pos"
+@using SportChain.Shared.DTOs.Courts
+@using SportChain.Shared.DTOs.Bookings
+@using SportChain.Shared.DTOs.Common
+@using SportChain.Shared.Enums
+@using SportChain.Client.Services
+@inject IApiService ApiService
+@inject ICourtRealtimeService RealtimeService
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
-<div class="container-fluid p-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold text-success">🎟️ Quầy Lễ Tân (POS Desk) - Check-in & Bán Hàng</h2>
-            <p class="text-muted">Tiếp nhận khách vãng lai, quét mã QR vào sân và ghi nhận dịch vụ phát sinh</p>
+<PageTitle>Quầy Lễ Tân POS Chi Nhánh | SportChain</PageTitle>
+
+@if (ApiService.CurrentUser == null || ApiService.CurrentUser.Role == UserRole.Customer)
+{
+    <div class="container-fluid p-4">
+        <div class="sport-card p-5 text-center my-4 border-danger shadow-sm">
+            <div class="d-inline-flex p-3 rounded-circle bg-danger-subtle text-danger mb-3">
+                <i class="bi bi-shield-lock-fill display-4"></i>
+            </div>
+            <h3 class="fw-bold text-dark">Quyền Truy Cập Bị Giới Hạn (403 Forbidden)</h3>
+            <p class="text-muted">Chức năng POS Quầy Lễ Tân chỉ dành riêng cho <strong>Nhân viên Lễ tân</strong> hoặc <strong>Quản lý chi nhánh</strong>.</p>
+            <p class="text-muted small">Tài khoản hiện tại của bạn là: <strong>@(ApiService.CurrentUser?.FullName ?? "Chưa đăng nhập")</strong> (Vai trò: <code>@(ApiService.CurrentUser?.Role.ToString() ?? "Guest")</code>).</p>
+            <p class="text-muted small">Nếu bạn đang thử nghiệm, hãy chọn <em>Lê Thị Lễ Tân</em> hoặc <em>Admin</em> ở menu góc trên bên phải.</p>
+            <a href="booking/matrix" class="btn btn-success fw-bold rounded-pill px-4 mt-2">
+                <i class="bi bi-arrow-left me-1"></i> Quay về Ma Trận Đặt Sân
+            </a>
         </div>
-        <div class="badge bg-success fs-6 p-2">Chi Nhánh: Quận 7 - Sân SportChain VIP</div>
+    </div>
+}
+else
+{
+<div class="container-fluid px-3 py-3 pos-screen">
+    <!-- POS Top Navigation & Stats Bar -->
+    <div class="sport-card p-3 mb-3" style="background: linear-gradient(135deg, #065f46 0%, #047857 100%); color: #ffffff;">
+        <div class="row align-items-center g-3">
+            <div class="col-md-7">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge bg-white text-success fw-bold px-2 py-1"><i class="bi bi-pc-display-horizontal"></i> POS DESK</span>
+                    <span class="text-white-50 small">Phiên làm việc Lễ tân trực ca</span>
+                </div>
+                <h3 class="fw-bold mb-0 brand-font text-white">Quầy Lễ Tân Chi Nhánh & Thu Ngân</h3>
+                <small class="text-white-50">Tiếp nhận khách vãng lai, quét QR check-in, gọi nước/thuê vợt và in hóa đơn tại quầy</small>
+            </div>
+
+            <div class="col-md-5 d-flex justify-content-md-end align-items-center gap-3">
+                <div class="text-end">
+                    <label class="form-label text-white-50 small mb-0"><i class="bi bi-geo-alt-fill"></i> Chi Nhánh Làm Việc</label>
+                    <select class="form-select form-select-sm fw-bold border-0 shadow-sm" @bind="selectedBranchId" @bind:after="OnBranchChanged">
+                        @if (branches != null)
+                        {
+                            @foreach (var b in branches)
+                            {
+                                <option value="@b.Id">@b.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <button class="btn btn-light btn-sm fw-bold rounded-pill px-3 shadow-sm" @onclick="RefreshAllData">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Làm mới
+                </button>
+            </div>
+        </div>
     </div>
 
-    <div class="row g-4">
-        <!-- Khung quét mã QR / Check-in -->
-        <div class="col-md-5">
-            <div class="card shadow-sm border-0 p-3">
-                <h5 class="fw-bold mb-3"><i class="bi bi-qr-code-scan"></i> Quét Vé Check-in Nhanh</h5>
-                <div class="input-group mb-3">
-                    <input type="text" class="form-control form-control-lg" placeholder="Nhập mã đơn hoặc quét QR..." />
-                    <button class="btn btn-success px-4">Xác Nhận</button>
+    <!-- Alert / Feedback Notification -->
+    @if (!string.IsNullOrEmpty(feedbackMessage))
+    {
+        <div class="alert @(isFeedbackError ? "alert-danger" : "alert-success") alert-dismissible fade show rounded-3 shadow-sm py-2 px-3 mb-3 d-flex align-items-center gap-2" role="alert">
+            <i class="bi @(isFeedbackError ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill") fs-5"></i>
+            <div>@feedbackMessage</div>
+            <button type="button" class="btn-close py-2" @onclick="() => feedbackMessage = null"></button>
+        </div>
+    }
+
+    <!-- Main Grid: QR Scan, Walk-In, Service & Bill -->
+    <div class="row g-3 mb-4">
+        <!-- Cột Trái: Quét QR Check-in & Đặt Sân Vãng Lai -->
+        <div class="col-lg-5">
+            <!-- 1. Quét Mã QR Check-in -->
+            <div class="sport-card p-3 mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h5 class="fw-bold text-dark mb-0 brand-font"><i class="bi bi-qr-code-scan text-success me-2"></i>Quét QR Check-in</h5>
+                    <span class="badge bg-success-subtle text-success">Khung [-15p, +15p]</span>
                 </div>
-                <div class="alert alert-info">
-                    <small>Thời gian check-in hợp lệ: <strong>Trước giờ chơi 15 phút đến Sau giờ chơi 15 phút</strong>. Quá 15 phút hệ thống sẽ tự động hủy đơn No-show.</small>
+                <p class="text-muted small mb-3">Nhập mã Check-in 32 ký tự hoặc dùng máy quét mã vạch USB:</p>
+
+                <div class="input-group mb-2">
+                    <input type="text" class="form-control form-control-lg font-monospace fw-bold" placeholder="Nhập mã QR check-in..."
+                           @bind="qrInputCode" @bind:event="oninput" @onkeyup="HandleQrKeyPress" />
+                    <button class="btn btn-success fw-bold px-4" @onclick="SubmitCheckIn" disabled="@isCheckingIn">
+                        @if (isCheckingIn)
+                        {
+                            <span class="spinner-border spinner-border-sm"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-box-arrow-in-right me-1"></i>
+                        }
+                        Vào Sân
+                    </button>
+                </div>
+
+                <!-- Gợi ý mã test nhanh từ danh sách đơn đã cọc hôm nay -->
+                @if (todayBookings != null && todayBookings.Any(b => b.Status == BookingStatus.Confirmed))
+                {
+                    <div class="mt-2 p-2 bg-light rounded-3 small">
+                        <span class="text-muted">Mã khách đã cọc chờ check-in: </span>
+                        @foreach (var b in todayBookings.Where(b => b.Status == BookingStatus.Confirmed).Take(2))
+                        {
+                            <button class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill font-monospace me-1"
+                                    @onclick="() => FillSampleCheckInCode(b.CheckInCode)">
+                                @b.CustomerName (@b.CheckInCode.Substring(0, 8)...)
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- 2. Bán Sân Nhanh Khách Vãng Lai (Walk-in) -->
+            <div class="sport-card p-3">
+                <h5 class="fw-bold text-dark mb-2 brand-font"><i class="bi bi-person-walking text-primary me-2"></i>Khách Vãng Lai Đặt Tại Quầy</h5>
+                <p class="text-muted small mb-3">Thu tiền 100% tại quầy và mở sân cho khách vào thi đấu ngay lập tức.</p>
+
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold mb-1">Tên khách hàng</label>
+                        <input type="text" class="form-control form-control-sm" placeholder="VD: Anh Nam" @bind="walkInName" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold mb-1">Số điện thoại</label>
+                        <input type="text" class="form-control form-control-sm" placeholder="09xxxxxxxx" @bind="walkInPhone" />
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold mb-1">Chọn Sân</label>
+                        <select class="form-select form-select-sm" @bind="walkInCourtId">
+                            @if (branchCourts != null)
+                            {
+                                @foreach (var c in branchCourts)
+                                {
+                                    <option value="@c.Id">@c.Name (@c.SurfaceType)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold mb-1">Chọn Ca Giờ</label>
+                        <select class="form-select form-select-sm" @bind="walkInSlotId">
+                            @if (availableTimeSlots != null)
+                            {
+                                @foreach (var s in availableTimeSlots)
+                                {
+                                    <option value="@s.Id">@s.DisplayLabel</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                    <div>
+                        <div class="text-muted small">Hình thức thu tiền:</div>
+                        <div class="fw-bold text-success">Thu trực tiếp 100%</div>
+                    </div>
+                    <button class="btn btn-primary fw-bold rounded-pill px-4" @onclick="CreateWalkInBooking" disabled="@isSubmittingWalkIn">
+                        @if (isSubmittingWalkIn)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        <i class="bi bi-check2-circle me-1"></i> Tạo Đơn & Vào Sân
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Khung bán dịch vụ phát sinh (Nước uống, Vợt) -->
-        <div class="col-md-7">
-            <div class="card shadow-sm border-0 p-3">
-                <h5 class="fw-bold mb-3"><i class="bi bi-cart3"></i> Dịch Vụ Phát Sinh (Nước, Thuê Vợt, Bóng)</h5>
+        <!-- Cột Phải: Bán Thêm Dịch Vụ & Hóa Đơn Thanh Toán (Checkout) -->
+        <div class="col-lg-7">
+            <!-- 3. Gọi Thêm Dịch Vụ Phát Sinh Vào Đơn Đang Chơi -->
+            <div class="sport-card p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="fw-bold text-dark mb-0 brand-font"><i class="bi bi-cup-straw text-warning me-2"></i>Dịch Vụ Phát Sinh (Nước, Thuê Vợt, Bóng)</h5>
+                    <span class="badge bg-warning text-dark">Thêm vào hóa đơn</span>
+                </div>
+                <p class="text-muted small mb-3">Chọn trận đấu đang diễn ra để cộng thêm đồ uống hoặc dụng cụ:</p>
+
+                <!-- Chọn Đơn Đang Chơi -->
+                <div class="row g-2 mb-3">
+                    <div class="col-md-7">
+                        <label class="form-label small fw-semibold mb-1">Đơn đang thi đấu tại sân:</label>
+                        <select class="form-select form-select-sm fw-bold text-primary" @bind="selectedActiveBookingId" @bind:after="OnActiveBookingChanged">
+                            <option value="0">-- Chọn đơn đặt đang chơi --</option>
+                            @if (todayBookings != null)
+                            {
+                                @foreach (var b in todayBookings.Where(b => b.Status == BookingStatus.InUse || b.Status == BookingStatus.Confirmed))
+                                {
+                                    <option value="@b.Id">@b.CourtName | @b.CustomerName | @b.BookingCode (@b.Status)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-5 d-flex align-items-end">
+                        @if (selectedActiveBookingId > 0)
+                        {
+                            <button class="btn btn-outline-primary btn-sm w-100 fw-bold rounded-3" @onclick="() => LoadInvoice(selectedActiveBookingId)">
+                                <i class="bi bi-receipt me-1"></i> Xem Hóa Đơn Đơn Này
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Các Nút Thêm Nhanh Dịch Vụ -->
                 <div class="row g-2">
-                    <div class="col-4">
-                        <button class="btn btn-outline-secondary w-100 p-2 text-start">
-                            <strong>Nước Pocari</strong><br/><span class="text-primary">15,000 đ</span>
+                    <div class="col-md-4 col-6">
+                        <button class="pos-btn-service" @onclick="() => AddServiceToActiveBooking(1, 1)" disabled="@(selectedActiveBookingId == 0)">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold text-dark small">Revive Chanh Muối</div>
+                                    <span class="text-success fw-bold small">15,000 đ</span>
+                                </div>
+                                <span class="badge bg-light text-dark fs-6">+1</span>
+                            </div>
                         </button>
                     </div>
-                    <div class="col-4">
-                        <button class="btn btn-outline-secondary w-100 p-2 text-start">
-                            <strong>Thuê Vợt Yonex</strong><br/><span class="text-primary">30,000 đ</span>
+                    <div class="col-md-4 col-6">
+                        <button class="pos-btn-service" @onclick="() => AddServiceToActiveBooking(2, 1)" disabled="@(selectedActiveBookingId == 0)">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold text-dark small">Nước Khoáng Aquafina</div>
+                                    <span class="text-success fw-bold small">10,000 đ</span>
+                                </div>
+                                <span class="badge bg-light text-dark fs-6">+1</span>
+                            </div>
                         </button>
                     </div>
-                    <div class="col-4">
-                        <button class="btn btn-outline-secondary w-100 p-2 text-start">
-                            <strong>Bóng Tennis Đunlop</strong><br/><span class="text-primary">20,000 đ</span>
+                    <div class="col-md-4 col-6">
+                        <button class="pos-btn-service" @onclick="() => AddServiceToActiveBooking(3, 1)" disabled="@(selectedActiveBookingId == 0)">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold text-dark small">Thuê Vợt Yonex Astrox</div>
+                                    <span class="text-primary fw-bold small">30,000 đ</span>
+                                </div>
+                                <span class="badge bg-light text-dark fs-6">+1</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="col-md-4 col-6">
+                        <button class="pos-btn-service" @onclick="() => AddServiceToActiveBooking(4, 1)" disabled="@(selectedActiveBookingId == 0)">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold text-dark small">Khăn Lạnh Cao Cấp</div>
+                                    <span class="text-success fw-bold small">5,000 đ</span>
+                                </div>
+                                <span class="badge bg-light text-dark fs-6">+1</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="col-md-4 col-6">
+                        <button class="pos-btn-service" @onclick="() => AddServiceToActiveBooking(5, 1)" disabled="@(selectedActiveBookingId == 0)">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold text-dark small">Điện Giải Pocari Sweat</div>
+                                    <span class="text-success fw-bold small">20,000 đ</span>
+                                </div>
+                                <span class="badge bg-light text-dark fs-6">+1</span>
+                            </div>
                         </button>
                     </div>
                 </div>
             </div>
+
+            <!-- 4. Hóa Đơn Chi Tiết & Thanh Toán POS (Checkout Tray) -->
+            @if (currentInvoice != null)
+            {
+                <div class="sport-card p-3 border-success print-receipt-section">
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                        <div>
+                            <h5 class="fw-bold brand-font text-dark mb-0">HÓA ĐƠN THANH TOÁN TẠI QUẦY</h5>
+                            <small class="text-muted">Mã đơn: <strong>@currentInvoice.BookingCode</strong> | Khách: <strong>@currentInvoice.CustomerName</strong></small>
+                        </div>
+                        <span class="badge @(currentInvoice.Status == BookingStatus.Completed ? "bg-secondary" : "bg-warning text-dark") fs-6 px-3 py-1">
+                            @currentInvoice.Status
+                        </span>
+                    </div>
+
+                    <!-- Breakdown Table -->
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm table-borderless small mb-0">
+                            <tbody>
+                                <tr>
+                                    <td><i class="bi bi-grid-fill text-success me-1"></i> Tiền thuê sân (@currentInvoice.CourtName, ca: @string.Join(", ", currentInvoice.SlotLabels)):</td>
+                                    <td class="text-end fw-bold">@currentInvoice.CourtRentAmount.ToString("N0") đ</td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-shield-check text-primary me-1"></i> Đã đặt cọc trước (30%):</td>
+                                    <td class="text-end text-danger fw-bold">- @currentInvoice.DepositPaid.ToString("N0") đ</td>
+                                </tr>
+                                @if (currentInvoice.Services.Count > 0)
+                                {
+                                    <tr class="border-top">
+                                        <td colspan="2" class="fw-bold text-dark pt-2">Dịch vụ & Dụng cụ phát sinh:</td>
+                                    </tr>
+                                    @foreach (var s in currentInvoice.Services)
+                                    {
+                                        <tr>
+                                            <td class="ps-3">• @s.ServiceName (x@s.Quantity):</td>
+                                            <td class="text-end fw-semibold">@s.SubTotal.ToString("N0") đ</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Total Amount Remaining -->
+                    <div class="p-3 bg-light rounded-3 d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <div class="text-muted small">SỐ TIỀN CÒN PHẢI THU:</div>
+                            <small class="text-muted">(Tiền sân còn lại + Dịch vụ)</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="fs-4 fw-bold text-danger">@currentInvoice.RemainingAmountToPay.ToString("N0") đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Complete Payment Actions -->
+                    <div class="d-flex justify-content-between align-items-center gap-2 no-print">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" @onclick="PrintReceipt">
+                            <i class="bi bi-printer me-1"></i> In Hóa Đơn K80
+                        </button>
+                        
+                        @if (currentInvoice.Status != BookingStatus.Completed)
+                        {
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold" @onclick="() => CompleteCheckout(PaymentMethod.VietQr)">
+                                    <i class="bi bi-qr-code me-1"></i> Thu Qua VietQR
+                                </button>
+                                <button class="btn btn-success btn-sm rounded-pill px-4 fw-bold shadow" @onclick="() => CompleteCheckout(PaymentMethod.Cash)">
+                                    <i class="bi bi-cash-stack me-1"></i> Thu Tiền Mặt & Kết Thúc
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- 5. Bảng Quản Lý Đơn Đặt Sân Chi Nhánh Hôm Nay -->
+    <div class="sport-card p-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h5 class="fw-bold brand-font text-dark mb-0"><i class="bi bi-calendar-check text-success me-2"></i>Lịch Đặt Sân Hôm Nay Tại Chi Nhánh</h5>
+                <small class="text-muted">Tổng cộng: @(todayBookings?.Count ?? 0) đơn đặt sân</small>
+            </div>
+            <!-- Bộ lọc trạng thái đơn -->
+            <div class="d-flex gap-1">
+                <button class="btn btn-xs @(statusFilter == null ? "btn-dark fw-bold" : "btn-outline-secondary") rounded-pill px-3" @onclick="() => statusFilter = null">Tất cả</button>
+                <button class="btn btn-xs @(statusFilter == BookingStatus.InUse ? "btn-purple fw-bold" : "btn-outline-secondary") rounded-pill px-3" @onclick="() => statusFilter = BookingStatus.InUse">Đang chơi</button>
+                <button class="btn btn-xs @(statusFilter == BookingStatus.Confirmed ? "btn-primary fw-bold" : "btn-outline-secondary") rounded-pill px-3" @onclick="() => statusFilter = BookingStatus.Confirmed">Đã cọc</button>
+                <button class="btn btn-xs @(statusFilter == BookingStatus.Completed ? "btn-secondary fw-bold" : "btn-outline-secondary") rounded-pill px-3" @onclick="() => statusFilter = BookingStatus.Completed">Hoàn tất</button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle small mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã Đơn</th>
+                        <th>Khách Hàng</th>
+                        <th>Số ĐT</th>
+                        <th>Sân</th>
+                        <th>Khung Ca</th>
+                        <th>Tổng Tiền</th>
+                        <th>Đã Cọc</th>
+                        <th>Trạng Thái</th>
+                        <th class="text-end">Thao Tác Lễ Tân</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (FilteredBookings.Any())
+                    {
+                        @foreach (var b in FilteredBookings)
+                        {
+                            <tr>
+                                <td class="font-monospace fw-bold text-dark">@b.BookingCode</td>
+                                <td class="fw-semibold">@b.CustomerName</td>
+                                <td class="text-muted">@b.CustomerPhone</td>
+                                <td><span class="badge bg-light text-dark border">@b.CourtName</span></td>
+                                <td><span class="text-primary fw-semibold">@string.Join(", ", b.SlotLabels)</span></td>
+                                <td class="fw-bold">@b.TotalAmount.ToString("N0") đ</td>
+                                <td class="text-success fw-bold">@b.DepositAmount.ToString("N0") đ</td>
+                                <td>
+                                    <span class="badge @GetStatusBadge(b.Status) px-2 py-1">@b.Status</span>
+                                </td>
+                                <td class="text-end">
+                                    @if (b.Status == BookingStatus.Confirmed)
+                                    {
+                                        <button class="btn btn-xs btn-success rounded-pill px-3" @onclick="() => QuickCheckInFromTable(b.CheckInCode)">
+                                            <i class="bi bi-box-arrow-in-right"></i> Check-in
+                                        </button>
+                                    }
+                                    else if (b.Status == BookingStatus.InUse)
+                                    {
+                                        <button class="btn btn-xs btn-outline-primary rounded-pill px-3" @onclick="() => LoadInvoice(b.Id)">
+                                            <i class="bi bi-receipt"></i> Hóa Đơn & Thu Tiền
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-xs btn-outline-secondary rounded-pill px-3" @onclick="() => LoadInvoice(b.Id)">
+                                            Chi tiết
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">Chưa có đơn đặt sân nào phù hợp với bộ lọc.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
+}
+
+@code {
+    private List<BranchDto>? branches;
+    private int selectedBranchId = 1;
+    private List<CourtDto>? branchCourts;
+    private List<TimeSlotDto>? availableTimeSlots;
+    private List<BookingDto>? todayBookings;
+
+    // Check-in State
+    private string qrInputCode = string.Empty;
+    private bool isCheckingIn = false;
+
+    // Walk-in State
+    private string walkInName = string.Empty;
+    private string walkInPhone = string.Empty;
+    private int walkInCourtId = 1;
+    private int walkInSlotId = 12;
+    private bool isSubmittingWalkIn = false;
+
+    // POS Active Order & Service
+    private int selectedActiveBookingId = 0;
+    private PosInvoiceDto? currentInvoice;
+
+    // Filtering & Feedback
+    private BookingStatus? statusFilter = null;
+    private string? feedbackMessage;
+    private bool isFeedbackError = false;
+
+    private IEnumerable<BookingDto> FilteredBookings =>
+        todayBookings?.Where(b => statusFilter == null || b.Status == statusFilter.Value) ?? Enumerable.Empty<BookingDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Tải danh sách chi nhánh
+        var branchRes = await ApiService.GetBranchesAsync();
+        if (branchRes.Success && branchRes.Data != null && branchRes.Data.Count > 0)
+        {
+            branches = branchRes.Data;
+            selectedBranchId = branches.First().Id;
+        }
+
+        await LoadBranchData();
+
+        // Lắng nghe SignalR để cập nhật bảng đơn tự động
+        RealtimeService.OnSlotStatusChanged += HandleRealtimeSlotUpdate;
+        await RealtimeService.JoinBranchAsync(selectedBranchId);
+    }
+
+    private async Task OnBranchChanged()
+    {
+        await RealtimeService.LeaveBranchAsync(selectedBranchId);
+        await RealtimeService.JoinBranchAsync(selectedBranchId);
+        await LoadBranchData();
+    }
+
+    private async Task LoadBranchData()
+    {
+        // 1. Tải danh sách sân
+        var courtsRes = await ApiService.GetCourtsByBranchAsync(selectedBranchId);
+        if (courtsRes.Success && courtsRes.Data != null)
+        {
+            branchCourts = courtsRes.Data;
+            if (branchCourts.Count > 0) walkInCourtId = branchCourts.First().Id;
+        }
+
+        // 2. Tải ma trận để lấy ca giờ
+        var matrixRes = await ApiService.GetBranchMatrixAsync(selectedBranchId, DateOnly.FromDateTime(DateTime.Now));
+        if (matrixRes.Success && matrixRes.Data != null)
+        {
+            availableTimeSlots = matrixRes.Data.TimeHeaders;
+            if (availableTimeSlots.Count > 0) walkInSlotId = availableTimeSlots.First().Id;
+        }
+
+        // 3. Tải các đơn trong ngày tại chi nhánh
+        var bookingsRes = await ApiService.GetBranchBookingsAsync(selectedBranchId, DateOnly.FromDateTime(DateTime.Now));
+        if (bookingsRes.Success && bookingsRes.Data != null)
+        {
+            todayBookings = bookingsRes.Data;
+        }
+    }
+
+    private async Task RefreshAllData()
+    {
+        feedbackMessage = null;
+        await LoadBranchData();
+        if (selectedActiveBookingId > 0)
+        {
+            await LoadInvoice(selectedActiveBookingId);
+        }
+    }
+
+    private void FillSampleCheckInCode(string code)
+    {
+        qrInputCode = code;
+    }
+
+    private async Task HandleQrKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SubmitCheckIn();
+        }
+    }
+
+    private async Task SubmitCheckIn()
+    {
+        if (string.IsNullOrWhiteSpace(qrInputCode))
+        {
+            feedbackMessage = "Vui lòng nhập mã QR Check-in.";
+            isFeedbackError = true;
+            return;
+        }
+
+        isCheckingIn = true;
+        var res = await ApiService.CheckInQrAsync(new CheckInRequest { CheckInCode = qrInputCode.Trim() });
+        isCheckingIn = false;
+
+        feedbackMessage = res.Message;
+        isFeedbackError = !res.Success;
+
+        if (res.Success)
+        {
+            qrInputCode = string.Empty;
+            await RefreshAllData();
+        }
+    }
+
+    private async Task QuickCheckInFromTable(string code)
+    {
+        qrInputCode = code;
+        await SubmitCheckIn();
+    }
+
+    private async Task CreateWalkInBooking()
+    {
+        if (string.IsNullOrWhiteSpace(walkInName) || string.IsNullOrWhiteSpace(walkInPhone))
+        {
+            feedbackMessage = "Vui lòng nhập họ tên và số điện thoại của khách vãng lai.";
+            isFeedbackError = true;
+            return;
+        }
+
+        var selectedSlot = availableTimeSlots?.FirstOrDefault(s => s.Id == walkInSlotId);
+        if (selectedSlot != null && selectedSlot.EndTime <= DateTime.Now.TimeOfDay)
+        {
+            feedbackMessage = "Ca thi đấu này đã kết thúc trong ngày hôm nay.";
+            isFeedbackError = true;
+            return;
+        }
+
+        isSubmittingWalkIn = true;
+        var req = new WalkInBookingRequest
+        {
+            CustomerName = walkInName.Trim(),
+            CustomerPhone = walkInPhone.Trim(),
+            BranchId = selectedBranchId,
+            CourtId = walkInCourtId,
+            BookingDate = DateOnly.FromDateTime(DateTime.Now),
+            TimeSlotIds = new List<int> { walkInSlotId },
+            PaymentMethod = PaymentMethod.Cash
+        };
+
+        var res = await ApiService.CreateWalkInBookingAsync(req);
+        isSubmittingWalkIn = false;
+
+        feedbackMessage = res.Message;
+        isFeedbackError = !res.Success;
+
+        if (res.Success && res.Data != null)
+        {
+            currentInvoice = res.Data;
+            selectedActiveBookingId = res.Data.BookingId;
+            walkInName = string.Empty;
+            walkInPhone = string.Empty;
+            await RefreshAllData();
+        }
+    }
+
+    private async Task OnActiveBookingChanged()
+    {
+        if (selectedActiveBookingId > 0)
+        {
+            await LoadInvoice(selectedActiveBookingId);
+        }
+        else
+        {
+            currentInvoice = null;
+        }
+    }
+
+    private async Task LoadInvoice(int bookingId)
+    {
+        selectedActiveBookingId = bookingId;
+        var res = await ApiService.GetInvoiceAsync(bookingId);
+        if (res.Success && res.Data != null)
+        {
+            currentInvoice = res.Data;
+        }
+        else
+        {
+            feedbackMessage = res.Message;
+            isFeedbackError = true;
+        }
+    }
+
+    private async Task AddServiceToActiveBooking(int serviceItemId, int quantity)
+    {
+        if (selectedActiveBookingId == 0) return;
+
+        var req = new AddServiceItemRequest
+        {
+            BookingId = selectedActiveBookingId,
+            ServiceItemId = serviceItemId,
+            Quantity = quantity
+        };
+
+        var res = await ApiService.AddServiceItemAsync(req);
+        feedbackMessage = res.Message;
+        isFeedbackError = !res.Success;
+
+        if (res.Success)
+        {
+            await LoadInvoice(selectedActiveBookingId);
+        }
+    }
+
+    private async Task CompleteCheckout(PaymentMethod method)
+    {
+        if (currentInvoice == null) return;
+
+        var req = new CompletePaymentRequest
+        {
+            BookingId = currentInvoice.BookingId,
+            PaymentMethod = method
+        };
+
+        var res = await ApiService.CompletePaymentAsync(req);
+        feedbackMessage = res.Message;
+        isFeedbackError = !res.Success;
+
+        if (res.Success)
+        {
+            await LoadInvoice(currentInvoice.BookingId);
+            await RefreshAllData();
+        }
+    }
+
+    private async Task PrintReceipt()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
+    private void HandleRealtimeSlotUpdate(int courtId, int slotId, SlotStatus status)
+    {
+        InvokeAsync(async () =>
+        {
+            await RefreshAllData();
+            StateHasChanged();
+        });
+    }
+
+    private string GetStatusBadge(BookingStatus status) => status switch
+    {
+        BookingStatus.PendingPayment => "bg-warning text-dark",
+        BookingStatus.Confirmed => "bg-primary text-white",
+        BookingStatus.InUse => "bg-purple text-white",
+        BookingStatus.Completed => "bg-success text-white",
+        BookingStatus.Cancelled => "bg-danger text-white",
+        BookingStatus.NoShow => "bg-dark text-white",
+        _ => "bg-secondary text-white"
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        RealtimeService.OnSlotStatusChanged -= HandleRealtimeSlotUpdate;
+        await RealtimeService.LeaveBranchAsync(selectedBranchId);
+    }
+
+    private async void HandleRealtimeSlotUpdate(int courtId, int slotId, SlotStatus status, string? dateStr)
+    {
+        await InvokeAsync(async () =>
+        {
+            string todayStr = DateTime.Now.ToString("yyyy-MM-dd");
+            if (string.IsNullOrEmpty(dateStr) || dateStr == todayStr)
+            {
+                await LoadBranchData();
+                StateHasChanged();
+            }
+        });
+    }
+}

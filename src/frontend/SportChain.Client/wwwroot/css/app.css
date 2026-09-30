@@ -1,103 +1,274 @@
+:root {
+    --primary: #0f172a;
+    --primary-light: #1e293b;
+    --accent: #10b981;
+    --accent-hover: #059669;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --info: #0284c7;
+    --purple: #8b5cf6;
+    --bg-main: #f8fafc;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --card-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.08);
+    --card-hover: 0 10px 25px -5px rgba(15, 23, 42, 0.12);
+}
+
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    margin: 0;
+    padding: 0;
 }
 
-h1:focus {
-    outline: none;
+h1, h2, h3, h4, h5, h6, .brand-font {
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.02em;
 }
 
-a, .btn-link {
-    color: #0071c1;
+/* Glassmorphism Cards */
+.sport-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: var(--card-shadow);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.btn-primary {
-    color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
+.sport-card:hover {
+    box-shadow: var(--card-hover);
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+.sport-card-dark {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #ffffff;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.content {
-    padding-top: 1.1rem;
+/* Matrix Table Styling */
+.matrix-container {
+    overflow-x: auto;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
 }
 
-.valid.modified:not([type=checkbox]) {
-    outline: 1px solid #26b050;
+.matrix-table {
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 4px;
 }
 
-.invalid {
-    outline: 1px solid red;
-}
-
-.validation-message {
-    color: red;
-}
-
-#blazor-error-ui {
-    background: lightyellow;
-    bottom: 0;
-    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
-    display: none;
-    left: 0;
-    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
-    position: fixed;
-    width: 100%;
-    z-index: 1000;
-}
-
-    #blazor-error-ui .dismiss {
-        cursor: pointer;
-        position: absolute;
-        right: 0.75rem;
-        top: 0.5rem;
-    }
-
-.blazor-error-boundary {
-    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121;
-    padding: 1rem 1rem 1rem 3.7rem;
-    color: white;
-}
-
-    .blazor-error-boundary::after {
-        content: "An error has occurred."
-    }
-
-.loading-progress {
-    position: relative;
-    display: block;
-    width: 8rem;
-    height: 8rem;
-    margin: 20vh auto 1rem auto;
-}
-
-    .loading-progress circle {
-        fill: none;
-        stroke: #e0e0e0;
-        stroke-width: 0.6rem;
-        transform-origin: 50% 50%;
-        transform: rotate(-90deg);
-    }
-
-        .loading-progress circle:last-child {
-            stroke: #1b6ec2;
-            stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
-            transition: stroke-dasharray 0.05s ease-in-out;
-        }
-
-.loading-progress-text {
-    position: absolute;
+.matrix-table th {
+    background-color: #f1f5f9;
+    font-weight: 700;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #475569;
+    padding: 12px 8px;
     text-align: center;
-    font-weight: bold;
-    inset: calc(20vh + 3.25rem) 0 auto 0.2rem;
+    vertical-align: middle;
+    border: none;
 }
 
-    .loading-progress-text:after {
-        content: var(--blazor-load-percentage-text, "Loading");
-    }
+.matrix-table th.court-col {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background-color: #f8fafc;
+    min-width: 170px;
+    text-align: left;
+    padding-left: 16px;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.04);
+}
 
-code {
-    color: #c02d76;
+.matrix-table td.court-name-cell {
+    position: sticky;
+    left: 0;
+    z-index: 9;
+    background-color: #ffffff;
+    font-weight: 600;
+    padding: 10px 14px;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.04);
+}
+
+/* Slot Cell States */
+.slot-cell {
+    width: 90px;
+    height: 52px;
+    border-radius: 10px;
+    padding: 4px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.76rem;
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+    border: 1.5px solid transparent;
+    user-select: none;
+}
+
+/* Available */
+.slot-available {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #a7f3d0;
+}
+
+.slot-available:hover {
+    background: #d1fae5;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
+    border-color: #10b981;
+}
+
+/* Holding (15-min countdown) */
+.slot-holding {
+    background: #fef3c7 !important;
+    color: #92400e !important;
+    border: 1.5px solid #f59e0b !important;
+    cursor: not-allowed !important;
+    animation: pulseHolding 2s infinite;
+}
+
+/* Slot holding belonging to current logged-in user */
+.slot-holding-mine {
+    background: #ffedd5 !important;
+    color: #9a3412 !important;
+    border: 2px dashed #f97316 !important;
+    box-shadow: 0 0 12px rgba(249, 115, 22, 0.45) !important;
+    cursor: pointer !important;
+    animation: pulseHolding 1.5s infinite;
+}
+
+.slot-holding-mine:hover {
+    background: #fed7aa !important;
+    transform: scale(1.04);
+}
+
+@keyframes pulseHolding {
+    0% { opacity: 0.85; }
+    50% { opacity: 1; border-color: #f59e0b; }
+    100% { opacity: 0.85; }
+}
+
+/* Confirmed (Booked) */
+.slot-confirmed {
+    background: #e0f2fe;
+    color: #0369a1;
+    border-color: #bae6fd;
+    cursor: not-allowed;
+    opacity: 0.95;
+}
+
+/* InUse */
+.slot-inuse {
+    background: #ede9fe;
+    color: #6d28d9;
+    border-color: #ddd6fe;
+    cursor: not-allowed;
+}
+
+/* Maintenance */
+.slot-maintenance {
+    background: #f1f5f9;
+    color: #94a3b8;
+    border-color: #cbd5e1;
+    cursor: not-allowed;
+    background-image: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(203, 213, 225, 0.4) 6px, rgba(203, 213, 225, 0.4) 12px);
+}
+
+/* Selected */
+.slot-selected {
+    background: #10b981 !important;
+    color: #ffffff !important;
+    border-color: #047857 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35) !important;
+    transform: scale(1.04);
+}
+
+/* Peak Hour Badge */
+.peak-badge {
+    background: #fef3c7;
+    color: #b45309;
+    font-size: 0.68rem;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+/* Floating Action Drawer for Booking */
+.booking-drawer {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    left: 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+    background: rgba(15, 23, 42, 0.94);
+    backdrop-filter: blur(16px);
+    color: #ffffff;
+    border-radius: 20px;
+    padding: 16px 24px;
+    box-shadow: 0 20px 40px -5px rgba(15, 23, 42, 0.5);
+    z-index: 1050;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* POS Screen Styles */
+.pos-screen {
+    background: #f1f5f9;
+    min-height: 100vh;
+}
+
+.pos-btn-service {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+    text-align: left;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.pos-btn-service:hover {
+    border-color: #10b981;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.pos-active-card {
+    border-left: 5px solid #10b981;
+}
+
+/* Printable Invoice */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .print-receipt-section, .print-receipt-section * {
+        visibility: visible;
+    }
+    .print-receipt-section {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 80mm; /* Khổ in hóa đơn nhiệt tiêu chuẩn K80 */
+        font-size: 12px;
+        padding: 10px;
+    }
+    .no-print {
+        display: none !important;
+    }
 }

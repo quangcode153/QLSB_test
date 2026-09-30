@@ -1,29 +1,41 @@
-doc/
-doc/*
+# 1. Bỏ qua tất cả file và thư mục ở thư mục gốc repo
+/*
 
+# 2. Whitelist: Chỉ cho phép .gitignore, file solution và thư mục src/
+!.gitignore
+!SportChainManager.slnx
+!/src/
+
+# 3. Bỏ qua tài liệu, email giả lập, file nháp
+doc/
+**/doc/
+mock_emails/
+**/mock_emails/
+scratch/
+**/scratch/
+
+# 4. Chặn các file tạm, thư mục build .NET/WinForms bên trong src/
+**/bin/
+**/obj/
+**/Debug/
+**/Release/
+*.user
+*.userprefs
+*.suo
+.vs/
+.vscode/
+*.DotSettings.user
+
+# 5. Chặn cấu hình môi trường và file bí mật nếu có
 .env
 *.env
 *.env.local
 .env.*.local
 
-**/bin/
-**/obj/
-**/Debug/
-**/Release/
-
-.vs/
-.vscode/
-*.user
-*.userprefs
-*.suo
-*.sln.docstates
-*.DotSettings.user
-
+# 6. Chặn file tạm hệ điều hành và log
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
 *.log
-scratch/
-mock_emails/

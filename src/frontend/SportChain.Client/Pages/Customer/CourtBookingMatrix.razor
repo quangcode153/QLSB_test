@@ -1,59 +1,969 @@
 @page "/booking/matrix"
+@using SportChain.Shared.DTOs.Courts
+@using SportChain.Shared.DTOs.Bookings
+@using SportChain.Shared.DTOs.Common
 @using SportChain.Shared.Enums
+@using SportChain.Client.Services
+@inject IApiService ApiService
+@inject ICourtRealtimeService RealtimeService
+@inject NavigationManager NavManager
+@implements IAsyncDisposable
 
-<div class="container-fluid p-4">
-    <!-- Tiêu đề & Bộ lọc -->
-    <div class="row align-items-center mb-4">
-        <div class="col-md-6">
-            <h2 class="fw-bold text-primary">🏟️ Ma Trận Lịch Đặt Sân Trực Quan</h2>
-            <p class="text-muted">Chọn ca 1 tiếng liên tiếp, hệ thống khóa giữ chỗ cọc 15 phút thời gian thực</p>
-        </div>
-        <div class="col-md-6 d-flex justify-content-end gap-3">
-            <div class="d-flex align-items-center gap-2">
-                <span class="badge" style="background-color: #22c55e;">&nbsp;</span> <small>Trống</small>
-                <span class="badge" style="background-color: #eab308;">&nbsp;</span> <small>Đang giữ (15p)</small>
-                <span class="badge" style="background-color: #ef4444;">&nbsp;</span> <small>Đã đặt</small>
-                <span class="badge" style="background-color: #3b82f6;">&nbsp;</span> <small>Đang chơi</small>
+<PageTitle>Ma Trận Đặt Sân Thể Thao Realtime | SportChain</PageTitle>
+
+<div class="container-fluid px-3 py-3">
+    <!-- Header Card -->
+    <div class="sport-card p-3 p-md-4 mb-3" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff;">
+        <div class="row align-items-center g-3">
+            <div class="col-lg-6">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="badge bg-success px-2 py-1"><i class="bi bi-broadcast"></i> REALTIME MATRIX</span>
+                    @if (RealtimeService.IsConnected)
+                    {
+                        <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-wifi"></i> Đồng bộ trực tiếp</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary"><i class="bi bi-wifi-off"></i> Đang kết nối lại...</span>
+                    }
+                </div>
+                <h2 class="fw-bold mb-1 brand-font text-white">Ma Trận Đặt Sân & Khóa Ca Tự Động</h2>
+                <p class="text-white-50 mb-0 small">
+                    Chọn ca 1 tiếng, hệ thống tự động khóa chỗ <strong>15 phút</strong> qua SignalR chống trùng lịch và tạo vé QR điện tử.
+                </p>
+            </div>
+
+            <!-- Controls: Branch & Date Filter -->
+            <div class="col-lg-6">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label text-white-50 small mb-1"><i class="bi bi-geo-alt-fill text-success"></i> Chi Nhánh</label>
+                        <select class="form-select form-select-sm fw-semibold" @bind="selectedBranchId" @bind:after="OnBranchOrDateChanged">
+                            @if (branches != null)
+                            {
+                                @foreach (var b in branches)
+                                {
+                                    <option value="@b.Id">@b.Name - @b.City</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-white-50 small mb-1"><i class="bi bi-calendar3 text-warning"></i> Ngày Đặt Sân</label>
+                        <input type="date" class="form-control form-control-sm fw-semibold" min="@DateTime.Today.ToString("yyyy-MM-dd")" value="@selectedDate.ToString("yyyy-MM-dd")" @onchange="OnDateInputChanged" />
+                    </div>
+                </div>
+
+                <!-- Quick Date Selector -->
+                <div class="d-flex gap-2 mt-2">
+                    <button class="btn btn-xs btn-outline-light rounded-pill px-2 py-1 small" @onclick="() => SetQuickDate(0)">Hôm nay</button>
+                    <button class="btn btn-xs btn-outline-light rounded-pill px-2 py-1 small" @onclick="() => SetQuickDate(1)">Ngày mai</button>
+                    <button class="btn btn-xs btn-outline-light rounded-pill px-2 py-1 small" @onclick="() => SetQuickDate(2)">+2 Ngày</button>
+                    <button class="btn btn-xs btn-outline-light rounded-pill px-2 py-1 small" @onclick="() => SetQuickDate(3)">+3 Ngày</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Bảng ma trận Timeline -->
-    <div class="card shadow-sm border-0 p-3">
-        <div class="table-responsive">
-            <table class="table table-bordered text-center align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th style="width: 150px;">Tên Sân</th>
-                        <th>06:00 - 07:00</th>
-                        <th>07:00 - 08:00</th>
-                        <th>17:00 - 18:00</th>
-                        <th>18:00 - 19:00 (Vàng)</th>
-                        <th>19:00 - 20:00 (Vàng)</th>
-                        <th>20:00 - 21:00 (Vàng)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="fw-bold text-start">Sân Cầu Lông 1</td>
-                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">100k</button></td>
-                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">100k</button></td>
-                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #ef4444;" disabled>Đã Đặt</button></td>
-                        <td><button class="btn btn-sm w-100 text-dark" style="background-color: #eab308;">Đang Giữ</button></td>
-                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">150k</button></td>
-                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">150k</button></td>
-                    </tr>
-                    <tr>
-                        <td class="fw-bold text-start">Sân Cầu Lông 2</td>
-                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">100k</button></td>
-                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">100k</button></td>
-                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">120k</button></td>
-                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #3b82f6;">Đang Chơi</button></td>
-                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #ef4444;" disabled>Đã Đặt</button></td>
-                        <td><button class="btn btn-sm w-100 text-white" style="background-color: #22c55e;">150k</button></td>
-                    </tr>
-                </tbody>
-            </table>
+    <!-- Sport Filters & Legend -->
+    <div class="sport-card p-3 mb-3">
+        <div class="row align-items-center g-2">
+            <!-- Sport Filter Pills -->
+            <div class="col-lg-6">
+                <div class="d-flex flex-wrap gap-1">
+                    <button class="btn btn-sm @(selectedSportType == null ? "btn-dark fw-bold" : "btn-outline-secondary") rounded-pill px-3" @onclick="() => FilterBySport(null)">
+                        Tất cả môn
+                    </button>
+                    <button class="btn btn-sm @(selectedSportType == SportType.Pickleball ? "btn-success fw-bold" : "btn-outline-secondary") rounded-pill px-3" @onclick="() => FilterBySport(SportType.Pickleball)">
+                        🏓 Pickleball
+                    </button>
+                    <button class="btn btn-sm @(selectedSportType == SportType.Badminton ? "btn-primary fw-bold" : "btn-outline-secondary") rounded-pill px-3" @onclick="() => FilterBySport(SportType.Badminton)">
+                        🏸 Cầu Lông
+                    </button>
+                    <button class="btn btn-sm @(selectedSportType == SportType.Football ? "btn-success fw-bold" : "btn-outline-secondary") rounded-pill px-3" @onclick="() => FilterBySport(SportType.Football)">
+                        ⚽ Bóng Đá
+                    </button>
+                    <button class="btn btn-sm @(selectedSportType == SportType.Tennis ? "btn-info text-white fw-bold" : "btn-outline-secondary") rounded-pill px-3" @onclick="() => FilterBySport(SportType.Tennis)">
+                        🎾 Tennis
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status Legend -->
+            <div class="col-lg-6">
+                <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-3 small">
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="slot-cell slot-available" style="width: 18px; height: 18px; border-radius: 4px;"></span>
+                        <span class="text-secondary">Trống</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="slot-cell slot-selected" style="width: 18px; height: 18px; border-radius: 4px;"></span>
+                        <span class="fw-bold text-success">Đang chọn</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="slot-cell slot-holding" style="width: 18px; height: 18px; border-radius: 4px;"></span>
+                        <span class="text-warning-emphasis">Giữ cọc (15p)</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="slot-cell slot-confirmed" style="width: 18px; height: 18px; border-radius: 4px;"></span>
+                        <span class="text-primary">Đã cọc/Đã đặt</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="slot-cell slot-inuse" style="width: 18px; height: 18px; border-radius: 4px;"></span>
+                        <span class="text-purple">Đang chơi</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="badge peak-badge">⭐ Giờ vàng</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+
+    <!-- Active Holding Warning Banner if any -->
+    @if (activeHoldingBooking != null)
+    {
+        <div class="alert alert-warning border border-warning shadow-sm rounded-4 p-3 mb-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="spinner-grow text-warning" role="status" style="width: 1.5rem; height: 1.5rem;"></div>
+                <div>
+                    <div class="fw-bold text-dark fs-6">
+                        <i class="bi bi-hourglass-split text-warning me-1"></i>
+                        Bạn đang giữ chỗ: <span class="text-primary">@activeHoldingBooking.CourtName</span> (@string.Join(", ", activeHoldingBooking.SlotLabels))
+                    </div>
+                    <small class="text-muted">
+                        Mã đơn: <strong class="font-monospace">@activeHoldingBooking.BookingCode</strong> | 
+                        Cọc 30%: <strong class="text-danger fs-6">@activeHoldingBooking.DepositAmount.ToString("N0") đ</strong> | 
+                        Tổng tiền: <strong>@activeHoldingBooking.TotalAmount.ToString("N0") đ</strong>
+                    </small>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-warning text-dark fs-6 font-monospace py-2 px-3 shadow-sm">
+                    <i class="bi bi-clock-history me-1"></i>@FormatRemainingTime()
+                </span>
+                <button class="btn btn-success fw-bold rounded-pill px-3 shadow-sm btn-sm py-2" @onclick="() => showDepositModal = true">
+                    <i class="bi bi-qr-code me-1"></i> Đặt Cọc 30% Ngay
+                </button>
+                <button class="btn btn-outline-danger fw-bold rounded-pill px-3 btn-sm py-2" @onclick="CancelActiveHoldingBooking">
+                    <i class="bi bi-x-circle me-1"></i> Hủy Giữ Chỗ (Mở Lại Ca)
+                </button>
+            </div>
+        </div>
+    }
+
+    <!-- Alert / Message bar -->
+    @if (!string.IsNullOrEmpty(feedbackMessage))
+    {
+        <div class="alert @(isFeedbackError ? "alert-danger" : "alert-success") alert-dismissible fade show rounded-3 shadow-sm py-2 px-3 mb-3 d-flex align-items-center gap-2" role="alert">
+            <i class="bi @(isFeedbackError ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill") fs-5"></i>
+            <div>@feedbackMessage</div>
+            <button type="button" class="btn-close py-2" @onclick="() => feedbackMessage = null"></button>
+        </div>
+    }
+
+    <!-- Loading State -->
+    @if (isLoading)
+    {
+        <div class="sport-card p-5 text-center my-4">
+            <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Đang tải...</span>
+            </div>
+            <p class="mt-3 text-muted fw-medium">Đang tính toán ma trận lịch sân chi nhánh...</p>
+        </div>
+    }
+    else if (matrixData == null || matrixData.Rows.Count == 0)
+    {
+        <div class="sport-card p-5 text-center my-4">
+            <i class="bi bi-calendar-x text-muted fs-1 mb-3"></i>
+            <h5 class="fw-bold">Chưa có dữ liệu sân tại chi nhánh này</h5>
+            <p class="text-muted">Vui lòng chọn chi nhánh khác hoặc kiểm tra lại lịch hoạt động.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Main Interactive Matrix Grid (Google Calendar Style) -->
+        <div class="matrix-container shadow-sm mb-5">
+            <div class="table-responsive">
+                <table class="table matrix-table align-middle">
+                    <thead>
+                        <tr>
+                            <th class="court-col">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-shield-shaded text-success"></i>
+                                    <span>Tên Sân / Vị Trí</span>
+                                </div>
+                            </th>
+                            @foreach (var header in matrixData.TimeHeaders)
+                            {
+                                <th>
+                                    <div>@header.DisplayLabel</div>
+                                    @if (header.IsPeakHour)
+                                    {
+                                        <div class="peak-badge mt-1">⭐ Giờ vàng</div>
+                                    }
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in FilteredRows)
+                        {
+                            <tr>
+                                <!-- Sticky Court Column -->
+                                <td class="court-name-cell">
+                                    <div class="d-flex flex-column">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span class="badge @GetSportBadgeClass(row.SportType) p-1">@GetSportIcon(row.SportType)</span>
+                                            <span class="fw-bold text-dark">@row.CourtName</span>
+                                        </div>
+                                        <small class="text-muted text-truncate mt-1" style="font-size: 0.72rem;">@row.SurfaceType</small>
+                                    </div>
+                                </td>
+
+                                <!-- Slot Columns -->
+                                @foreach (var slot in row.Slots)
+                                {
+                                    var isSelected = selectedSlots.Any(s => s.CourtId == row.CourtId && s.TimeSlotId == slot.TimeSlotId);
+                                    var isMyHolding = slot.Status == SlotStatus.Holding &&
+                                        ((slot.CustomerId.HasValue && ApiService.CurrentUser != null && slot.CustomerId == ApiService.CurrentUser.UserId) ||
+                                         (activeHoldingBooking != null && (slot.BookingId == activeHoldingBooking.Id || (activeHoldingBooking.CourtId == row.CourtId && activeHoldingBooking.TimeSlotIds.Contains(slot.TimeSlotId)))));
+                                    var isPast = IsPastSlot(slot.TimeSlotId);
+                                    var cellClass = isMyHolding ? "slot-holding-mine" : (isPast && slot.Status == SlotStatus.Available ? "slot-past" : GetSlotCellClass(slot.Status, isSelected));
+
+                                    <td>
+                                        <div class="slot-cell @cellClass"
+                                             style="@(isPast && slot.Status == SlotStatus.Available ? "opacity: 0.45; cursor: not-allowed; background-color: #f1f5f9; border-color: #cbd5e1;" : "")"
+                                             title="@(isPast && slot.Status == SlotStatus.Available ? $"{row.CourtName} | {slot.TimeLabel} - Đã qua giờ trong ngày" : (isMyHolding ? $"{row.CourtName} | {slot.TimeLabel} - Ca bạn đang giữ chỗ (Nhấp để thanh toán cọc hoặc hủy)" : GetSlotTooltip(row.CourtName, slot)))"
+                                             @onclick="() => ToggleSlotSelection(row.CourtId, row.CourtName, row.SportType, slot, isMyHolding)">
+                                            @if (isSelected)
+                                            {
+                                                <i class="bi bi-check-circle-fill text-white fs-6"></i>
+                                                <span class="text-white">@FormatPrice(slot.Price)</span>
+                                            }
+                                            else if (isMyHolding)
+                                            {
+                                                <i class="bi bi-hourglass-split text-danger"></i>
+                                                <span style="font-size: 0.68rem; font-weight: 700; color: #c2410c;">Bạn giữ</span>
+                                            }
+                                            else if (slot.Status == SlotStatus.Available)
+                                            {
+                                                @if (isPast)
+                                                {
+                                                    <i class="bi bi-clock-history text-muted"></i>
+                                                    <span style="font-size: 0.68rem; color: #64748b;">Đã qua</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>@FormatPrice(slot.Price)</span>
+                                                    @if (slot.IsPeakHour)
+                                                    {
+                                                        <span style="font-size: 0.62rem; color: #b45309;">Cao điểm</span>
+                                                    }
+                                                }
+                                            }
+                                            else if (slot.Status == SlotStatus.Holding)
+                                            {
+                                                <i class="bi bi-hourglass-split text-warning"></i>
+                                                <span style="font-size: 0.68rem;">Đang giữ</span>
+                                            }
+                                            else if (slot.Status == SlotStatus.Booked)
+                                            {
+                                                <i class="bi bi-lock-fill text-primary"></i>
+                                                <span style="font-size: 0.68rem;">Đã đặt</span>
+                                            }
+                                            else if (slot.Status == SlotStatus.InUse)
+                                            {
+                                                <i class="bi bi-play-circle-fill text-purple"></i>
+                                                <span style="font-size: 0.68rem;">Đang chơi</span>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-tools text-secondary"></i>
+                                                <span style="font-size: 0.68rem;">Bảo trì</span>
+                                            }
+                                        </div>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <!-- Floating Action Drawer (Giỏ Đặt Sân & Khóa Chỗ 15 Phút) -->
+    @if (selectedSlots.Count > 0)
+    {
+        <div class="booking-drawer">
+            <div class="row align-items-center g-3">
+                <div class="col-md-7">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="badge bg-success rounded-pill px-2 py-1">@selectedSlots.Count ca đã chọn</span>
+                        <span class="fw-bold text-white fs-6">@selectedSlots.First().CourtName</span>
+                        <span class="text-white-50">| Ngày: @selectedDate.ToString("dd/MM/yyyy")</span>
+                    </div>
+                    <div class="text-white-50 small text-truncate">
+                        Khung giờ: <strong>@string.Join(", ", selectedSlots.Select(s => s.TimeLabel))</strong>
+                    </div>
+                </div>
+
+                <div class="col-md-5 d-flex justify-content-md-end align-items-center gap-3">
+                    <div class="text-end">
+                        <div class="text-white-50 small">Tổng tiền: <span class="text-white fw-bold">@TotalAmount.ToString("N0") đ</span></div>
+                        <div class="text-warning fw-bold fs-6">Cọc 30%: @DepositAmount.ToString("N0") đ</div>
+                    </div>
+                    <button class="btn btn-outline-light btn-sm rounded-pill px-3" @onclick="ClearSelectedSlots">Hủy chọn</button>
+                    <button class="btn btn-success fw-bold rounded-pill px-4 shadow py-2" @onclick="StartHoldingBooking" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-lock-fill me-1"></i>
+                        }
+                        Giữ Chỗ 15 Phút
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Deposit Modal (Xác Nhận Đặt Cọc 30% & VietQR) -->
+    @if (activeHoldingBooking != null && showDepositModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content sport-card border-0 shadow-lg p-2">
+                    <div class="modal-header border-0 pb-0">
+                        <div>
+                            <h5 class="modal-title fw-bold text-dark brand-font"><i class="bi bi-shield-check text-success me-2"></i>Thanh Toán Cọc 30%</h5>
+                            <small class="text-muted">Đơn đặt sân: <strong>@activeHoldingBooking.BookingCode</strong></small>
+                        </div>
+                        <button type="button" class="btn-close" @onclick="() => showDepositModal = false"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <!-- Countdown Warning -->
+                        <div class="alert alert-warning py-2 px-3 rounded-3 d-flex align-items-center justify-content-between mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-clock-history fs-5 text-warning"></i>
+                                <span class="small fw-semibold">Thời gian giữ chỗ còn lại:</span>
+                            </div>
+                            <span class="badge bg-warning text-dark fs-6 font-monospace">@FormatRemainingTime()</span>
+                        </div>
+
+                        <!-- VietQR Simulated Box -->
+                        <div class="text-center p-3 rounded-4 bg-light border mb-3">
+                            <div class="fw-bold text-primary mb-1">NGÂN HÀNG QUÂN ĐỘI (MBBANK)</div>
+                            <div class="text-muted small">Số tài khoản: <strong class="text-dark">999988887777</strong></div>
+                            <div class="text-muted small">Chủ TK: <strong class="text-dark">SPORTCHAIN VIETNAM</strong></div>
+                            
+                            <!-- QR Visual Box -->
+                            <div class="my-2 p-2 bg-white d-inline-block rounded-4 shadow-sm border text-center">
+                                <img src="images/vietqr_custom.jpg" alt="VietQR Thanh Toán Cọc" class="rounded-3 shadow-sm img-fluid" style="max-width: 220px; max-height: 220px; object-fit: contain;" />
+                                <div class="small text-muted mt-1"><i class="bi bi-qr-code-scan text-success"></i> Quét mã VietQR thanh toán nhanh</div>
+                            </div>
+
+                            <div class="text-danger fw-bold fs-5">@activeHoldingBooking.DepositAmount.ToString("N0") đ</div>
+                            <div class="text-muted small">Nội dung CK: <span class="badge bg-secondary font-monospace">@activeHoldingBooking.BookingCode</span></div>
+                        </div>
+
+                        <!-- Payment Method Selector -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">Phương thức thanh toán</label>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm @(selectedPaymentMethod == PaymentMethod.VietQr ? "btn-success" : "btn-outline-secondary") flex-fill rounded-3 py-2"
+                                        @onclick="() => selectedPaymentMethod = PaymentMethod.VietQr">
+                                    <i class="bi bi-qr-code-scan me-1"></i> VietQR / CK
+                                </button>
+                                <button class="btn btn-sm @(selectedPaymentMethod == PaymentMethod.CreditCard ? "btn-success" : "btn-outline-secondary") flex-fill rounded-3 py-2"
+                                        @onclick="() => selectedPaymentMethod = PaymentMethod.CreditCard">
+                                    <i class="bi bi-credit-card me-1"></i> Thẻ Tín Dụng
+                                </button>
+                                <button class="btn btn-sm @(selectedPaymentMethod == PaymentMethod.Cash ? "btn-success" : "btn-outline-secondary") flex-fill rounded-3 py-2"
+                                        @onclick="() => selectedPaymentMethod = PaymentMethod.Cash">
+                                    <i class="bi bi-cash-stack me-1"></i> Tiền Mặt
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer border-0 pt-0 d-flex justify-content-between align-items-center">
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3" @onclick="CancelActiveHoldingBooking">
+                            <i class="bi bi-trash me-1"></i> Hủy Giữ Chỗ
+                        </button>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-light rounded-pill px-3 btn-sm" @onclick="() => showDepositModal = false">Để Sau</button>
+                            <button type="button" class="btn btn-success fw-bold rounded-pill px-4 shadow btn-sm" @onclick="ConfirmDepositPayment" disabled="@isSubmitting">
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                <i class="bi bi-check-circle-fill me-1"></i> Xác Nhận Đã Chuyển Khoản
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Electronic Ticket Dialog (Vé Điện Tử Kèm Mã QR) -->
+    @if (ticketBooking != null && showTicketModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content sport-card border-0 shadow-lg text-center p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill">
+                            <i class="bi bi-check-circle-fill"></i> ĐẶT CỌC THÀNH CÔNG
+                        </span>
+                        <button type="button" class="btn-close" @onclick="() => showTicketModal = false"></button>
+                    </div>
+
+                    <h4 class="fw-bold brand-font text-dark mb-1">Vé Điện Tử & Mã Check-in</h4>
+                    <p class="text-muted small mb-3">Xuất trình mã QR này tại quầy Lễ tân trước giờ chơi 15 phút</p>
+
+                    <!-- QR Image Frame -->
+                    <div class="bg-light p-3 rounded-4 border d-inline-block mx-auto mb-3 shadow-sm">
+                        @if (!string.IsNullOrEmpty(ticketBooking.QrCodeBase64))
+                        {
+                            <img src="@ticketBooking.QrCodeBase64" alt="Mã QR Check-in" style="width: 180px; height: 180px;" class="rounded-3" />
+                        }
+                        else
+                        {
+                            <div class="p-4"><i class="bi bi-qr-code text-dark" style="font-size: 8rem;"></i></div>
+                        }
+                        <div class="font-monospace fw-bold text-dark mt-2 tracking-wider">@ticketBooking.CheckInCode</div>
+                    </div>
+
+                    <!-- Ticket Details -->
+                    <div class="bg-light rounded-3 p-3 text-start small mb-3">
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Mã đơn:</span>
+                            <span class="fw-bold">@ticketBooking.BookingCode</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Chi nhánh:</span>
+                            <span class="fw-bold">@ticketBooking.BranchName</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Sân thi đấu:</span>
+                            <span class="fw-bold text-success">@ticketBooking.CourtName</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Ngày chơi:</span>
+                            <span class="fw-bold">@ticketBooking.BookingDate.ToString("dd/MM/yyyy")</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Khung ca:</span>
+                            <span class="fw-bold text-primary">@string.Join(", ", ticketBooking.SlotLabels)</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1">
+                            <span class="text-muted">Đã đặt cọc:</span>
+                            <span class="fw-bold text-danger">@ticketBooking.DepositAmount.ToString("N0") đ (30%)</span>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-dark fw-bold rounded-pill w-100 py-2" @onclick="() => showTicketModal = false">
+                        <i class="bi bi-check2-circle me-1"></i> Hoàn Tất & Đóng
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
+
+@code {
+    private List<BranchDto>? branches;
+    private int selectedBranchId = 1;
+    private DateOnly selectedDate = DateOnly.FromDateTime(DateTime.Now);
+    private SportType? selectedSportType = null;
+
+    private BranchMatrixDto? matrixData;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+
+    // Selected slots for booking
+    private class SelectedSlotItem
+    {
+        public int CourtId { get; set; }
+        public string CourtName { get; set; } = string.Empty;
+        public SportType SportType { get; set; }
+        public int TimeSlotId { get; set; }
+        public string TimeLabel { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+    }
+
+    private List<SelectedSlotItem> selectedSlots = new();
+    private decimal TotalAmount => selectedSlots.Sum(s => s.Price);
+    private decimal DepositAmount => TotalAmount * 0.3m;
+
+    // Holding & Deposit State
+    private BookingDto? activeHoldingBooking;
+    private bool showDepositModal = false;
+    private PaymentMethod selectedPaymentMethod = PaymentMethod.VietQr;
+    private DateTime? holdingExpiresAt;
+    private System.Threading.Timer? countdownTimer;
+
+    // Electronic Ticket Modal
+    private BookingDto? ticketBooking;
+    private bool showTicketModal = false;
+
+    // Feedback
+    private string? feedbackMessage;
+    private bool isFeedbackError = false;
+
+    private IEnumerable<CourtMatrixRowDto> FilteredRows =>
+        matrixData?.Rows.Where(r => selectedSportType == null || r.SportType == selectedSportType.Value) ?? Enumerable.Empty<CourtMatrixRowDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Tải danh sách chi nhánh
+        var branchRes = await ApiService.GetBranchesAsync();
+        if (branchRes.Success && branchRes.Data != null && branchRes.Data.Count > 0)
+        {
+            branches = branchRes.Data;
+            selectedBranchId = branches.First().Id;
+        }
+
+        // 2. Đăng ký lắng nghe sự kiện Realtime SignalR và tham gia nhóm chi nhánh
+        RealtimeService.OnSlotStatusChanged -= HandleRealtimeSlotChanged;
+        RealtimeService.OnSlotStatusChanged += HandleRealtimeSlotChanged;
+        await RealtimeService.JoinBranchAsync(selectedBranchId);
+
+        // 3. Tải ma trận lịch sân
+        await LoadMatrixAsync();
+    }
+
+    private async Task LoadMatrixAsync()
+    {
+        isLoading = true;
+        selectedSlots.Clear();
+        StateHasChanged();
+
+        var res = await ApiService.GetBranchMatrixAsync(selectedBranchId, selectedDate);
+        if (res.Success && res.Data != null)
+        {
+            matrixData = res.Data;
+        }
+        else
+        {
+            matrixData = null;
+            feedbackMessage = res.Message;
+            isFeedbackError = true;
+        }
+
+        // Tự động kiểm tra xem khách hàng có đơn giữ chỗ nào chưa cọc đang hiệu lực không
+        if (ApiService.CurrentUser != null)
+        {
+            var myBookingsRes = await ApiService.GetMyBookingsAsync();
+            if (myBookingsRes.Success && myBookingsRes.Data != null)
+            {
+                var pending = myBookingsRes.Data.FirstOrDefault(b => b.Status == BookingStatus.PendingPayment && b.ExpireHoldingAt > DateTime.UtcNow);
+                if (pending != null)
+                {
+                    activeHoldingBooking = pending;
+                    holdingExpiresAt = pending.ExpireHoldingAt != default ? pending.ExpireHoldingAt : DateTime.UtcNow.AddMinutes(15);
+                    StartCountdownTimer();
+                }
+                else if (activeHoldingBooking != null && activeHoldingBooking.Status == BookingStatus.PendingPayment)
+                {
+                    activeHoldingBooking = null;
+                }
+            }
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task OnBranchOrDateChanged()
+    {
+        await RealtimeService.LeaveBranchAsync(selectedBranchId);
+        await RealtimeService.JoinBranchAsync(selectedBranchId);
+        await LoadMatrixAsync();
+    }
+
+    private async Task OnDateInputChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var parsedDate))
+        {
+            if (parsedDate < DateOnly.FromDateTime(DateTime.Today))
+            {
+                feedbackMessage = "Không thể đặt lịch cho ngày trong quá khứ.";
+                isFeedbackError = true;
+                selectedDate = DateOnly.FromDateTime(DateTime.Today);
+            }
+            else
+            {
+                selectedDate = parsedDate;
+            }
+            await LoadMatrixAsync();
+        }
+    }
+
+    private async Task SetQuickDate(int daysFromNow)
+    {
+        selectedDate = DateOnly.FromDateTime(DateTime.Now.AddDays(daysFromNow));
+        await LoadMatrixAsync();
+    }
+
+    private void FilterBySport(SportType? sportType)
+    {
+        selectedSportType = sportType;
+    }
+
+    private async Task ToggleSlotSelection(int courtId, string courtName, SportType sportType, SlotMatrixCellDto slot, bool isMyHolding)
+    {
+        if (isMyHolding)
+        {
+            if (activeHoldingBooking == null && slot.BookingId.HasValue)
+            {
+                var bRes = await ApiService.GetBookingByIdAsync(slot.BookingId.Value);
+                if (bRes.Success && bRes.Data != null)
+                {
+                    activeHoldingBooking = bRes.Data;
+                    holdingExpiresAt = bRes.Data.ExpireHoldingAt != default ? bRes.Data.ExpireHoldingAt : DateTime.UtcNow.AddMinutes(15);
+                    StartCountdownTimer();
+                }
+            }
+            showDepositModal = true;
+            return;
+        }
+
+        if (slot.Status != SlotStatus.Available)
+        {
+            return; // Chỉ cho phép chọn ô ca trống
+        }
+
+        if (selectedDate < DateOnly.FromDateTime(DateTime.Today))
+        {
+            feedbackMessage = "Không thể đặt sân trong quá khứ.";
+            isFeedbackError = true;
+            return;
+        }
+
+        if (IsPastSlot(slot.TimeSlotId))
+        {
+            feedbackMessage = "Khung giờ này đã trôi qua trong ngày hôm nay.";
+            isFeedbackError = true;
+            return;
+        }
+
+        var existing = selectedSlots.FirstOrDefault(s => s.CourtId == courtId && s.TimeSlotId == slot.TimeSlotId);
+        if (existing != null)
+        {
+            selectedSlots.Remove(existing);
+        }
+        else
+        {
+            // Nếu đã chọn sân khác, reset để chỉ đặt trong cùng 1 sân
+            if (selectedSlots.Count > 0 && selectedSlots.First().CourtId != courtId)
+            {
+                selectedSlots.Clear();
+            }
+
+            selectedSlots.Add(new SelectedSlotItem
+            {
+                CourtId = courtId,
+                CourtName = courtName,
+                SportType = sportType,
+                TimeSlotId = slot.TimeSlotId,
+                TimeLabel = slot.TimeLabel,
+                Price = slot.Price
+            });
+        }
+    }
+
+    private async Task CancelActiveHoldingBooking()
+    {
+        if (activeHoldingBooking == null) return;
+        var cancelledCourtId = activeHoldingBooking.CourtId;
+        var cancelledSlotIds = activeHoldingBooking.TimeSlotIds.ToList();
+
+        isSubmitting = true;
+        var res = await ApiService.CancelBookingAsync(activeHoldingBooking.Id, new CancelBookingRequest { Reason = "Khách hàng chủ động hủy giữ chỗ." });
+        isSubmitting = false;
+
+        if (res.Success)
+        {
+            showDepositModal = false;
+            countdownTimer?.Dispose();
+            activeHoldingBooking = null;
+
+            // Giải phóng ngay trên giao diện local của người dùng
+            if (matrixData != null)
+            {
+                var row = matrixData.Rows.FirstOrDefault(r => r.CourtId == cancelledCourtId);
+                if (row != null)
+                {
+                    foreach (var sId in cancelledSlotIds)
+                    {
+                        var s = row.Slots.FirstOrDefault(x => x.TimeSlotId == sId);
+                        if (s != null)
+                        {
+                            s.Status = SlotStatus.Available;
+                            s.BookingId = null;
+                            s.CustomerId = null;
+                            s.CustomerName = null;
+                            s.BookingCode = null;
+                        }
+                    }
+                }
+            }
+
+            feedbackMessage = "Đã hủy giữ chỗ thành công! Ca giờ đã được mở lại cho mọi người.";
+            isFeedbackError = false;
+            StateHasChanged();
+        }
+        else
+        {
+            feedbackMessage = res.Message;
+            isFeedbackError = true;
+        }
+    }
+
+    private void ClearSelectedSlots()
+    {
+        selectedSlots.Clear();
+    }
+
+    private async Task StartHoldingBooking()
+    {
+        if (selectedSlots.Count == 0) return;
+
+        isSubmitting = true;
+        feedbackMessage = null;
+
+        var request = new CreateBookingRequest
+        {
+            CourtId = selectedSlots.First().CourtId,
+            BookingDate = selectedDate,
+            TimeSlotIds = selectedSlots.Select(s => s.TimeSlotId).ToList()
+        };
+
+        if (string.IsNullOrEmpty(ApiService.Token) || ApiService.CurrentUser == null)
+        {
+            isSubmitting = false;
+            feedbackMessage = "Quy tắc nghiệp vụ: Bạn bắt buộc phải đăng nhập tài khoản trước khi tiến hành đăng ký đặt sân!";
+            isFeedbackError = true;
+            return;
+        }
+
+        var res = await ApiService.CreateHoldingBookingAsync(request);
+        isSubmitting = false;
+
+        if (res.Success && res.Data != null)
+        {
+            activeHoldingBooking = res.Data;
+            holdingExpiresAt = res.Data.ExpireHoldingAt != default ? res.Data.ExpireHoldingAt : DateTime.UtcNow.AddMinutes(15);
+            showDepositModal = true;
+
+            // Cập nhật ngay lập tức các ô vừa giữ sang trạng thái Holding trên ma trận của chính người dùng
+            if (matrixData != null)
+            {
+                var row = matrixData.Rows.FirstOrDefault(r => r.CourtId == request.CourtId);
+                if (row != null)
+                {
+                    foreach (var slotId in request.TimeSlotIds)
+                    {
+                        var slot = row.Slots.FirstOrDefault(s => s.TimeSlotId == slotId);
+                        if (slot != null)
+                        {
+                            slot.Status = SlotStatus.Holding;
+                            slot.BookingId = res.Data.Id;
+                            slot.CustomerId = res.Data.CustomerId;
+                        }
+                    }
+                }
+            }
+
+            selectedSlots.Clear();
+
+            // Khởi động đếm ngược 15 phút
+            StartCountdownTimer();
+            feedbackMessage = res.Message;
+            isFeedbackError = false;
+            StateHasChanged();
+        }
+        else
+        {
+            feedbackMessage = res.Message;
+            isFeedbackError = true;
+        }
+    }
+
+    private async Task ConfirmDepositPayment()
+    {
+        if (activeHoldingBooking == null) return;
+
+        isSubmitting = true;
+        var req = new ConfirmDepositRequest { PaymentMethod = selectedPaymentMethod };
+        var res = await ApiService.ConfirmDepositAsync(activeHoldingBooking.Id, req);
+        isSubmitting = false;
+
+        if (res.Success && res.Data != null)
+        {
+            ticketBooking = res.Data;
+            showDepositModal = false;
+            showTicketModal = true;
+            countdownTimer?.Dispose();
+            activeHoldingBooking = null;
+
+            feedbackMessage = res.Message;
+            isFeedbackError = false;
+
+            // Tải lại ma trận để cập nhật màu sang Confirmed
+            await LoadMatrixAsync();
+        }
+        else
+        {
+            feedbackMessage = res.Message;
+            isFeedbackError = true;
+        }
+    }
+
+    private void StartCountdownTimer()
+    {
+        countdownTimer?.Dispose();
+        countdownTimer = new System.Threading.Timer(_ =>
+        {
+            InvokeAsync(StateHasChanged);
+        }, null, 0, 1000);
+    }
+
+    private string FormatRemainingTime()
+    {
+        if (!holdingExpiresAt.HasValue) return "15:00";
+        var remaining = holdingExpiresAt.Value - DateTime.UtcNow;
+        if (remaining <= TimeSpan.Zero) return "00:00 (Hết hạn)";
+        return $"{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+    }
+
+    private void HandleRealtimeSlotChanged(int courtId, int timeSlotId, SlotStatus newStatus)
+    {
+        InvokeAsync(() =>
+        {
+            if (matrixData != null)
+            {
+                var row = matrixData.Rows.FirstOrDefault(r => r.CourtId == courtId);
+                if (row != null)
+                {
+                    var slot = row.Slots.FirstOrDefault(s => s.TimeSlotId == timeSlotId);
+                    if (slot != null)
+                    {
+                        slot.Status = newStatus;
+                        if (newStatus == SlotStatus.Available)
+                        {
+                            slot.BookingId = null;
+                            slot.CustomerId = null;
+                            slot.CustomerName = null;
+                            slot.BookingCode = null;
+                        }
+                        StateHasChanged();
+                    }
+                }
+            }
+        });
+    }
+
+    private string GetSlotCellClass(SlotStatus status, bool isSelected)
+    {
+        if (isSelected) return "slot-selected";
+        return status switch
+        {
+            SlotStatus.Available => "slot-available",
+            SlotStatus.Holding => "slot-holding",
+            SlotStatus.Booked => "slot-confirmed",
+            SlotStatus.InUse => "slot-inuse",
+            SlotStatus.Maintenance => "slot-maintenance",
+            _ => "slot-available"
+        };
+    }
+
+    private string GetSlotTooltip(string courtName, SlotMatrixCellDto slot)
+    {
+        return slot.Status switch
+        {
+            SlotStatus.Available => $"{courtName} | {slot.TimeLabel} - {FormatPrice(slot.Price)} (Bấm để chọn)",
+            SlotStatus.Holding => $"{courtName} | {slot.TimeLabel} - Đang có người giữ cọc (15p)",
+            SlotStatus.Booked => $"{courtName} | {slot.TimeLabel} - Đã có người đặt",
+            SlotStatus.InUse => $"{courtName} | {slot.TimeLabel} - Đang diễn ra trận đấu",
+            SlotStatus.Maintenance => $"{courtName} - Đang tạm khóa bảo trì kỹ thuật",
+            _ => courtName
+        };
+    }
+
+    private string FormatPrice(decimal price)
+    {
+        if (price >= 1000) return $"{price / 1000:0}k";
+        return $"{price:0}đ";
+    }
+
+    private string GetSportBadgeClass(SportType sport) => sport switch
+    {
+        SportType.Pickleball => "bg-success text-white",
+        SportType.Badminton => "bg-primary text-white",
+        SportType.Football => "bg-success text-white",
+        SportType.Tennis => "bg-info text-white",
+        _ => "bg-secondary text-white"
+    };
+
+    private string GetSportIcon(SportType sport) => sport switch
+    {
+        SportType.Pickleball => "🏓",
+        SportType.Badminton => "🏸",
+        SportType.Football => "⚽",
+        SportType.Tennis => "🎾",
+        _ => "🏅"
+    };
+
+    private bool IsPastSlot(int timeSlotId)
+    {
+        if (selectedDate > DateOnly.FromDateTime(DateTime.Today)) return false;
+        if (selectedDate < DateOnly.FromDateTime(DateTime.Today)) return true;
+
+        var header = matrixData?.TimeHeaders?.FirstOrDefault(h => h.Id == timeSlotId);
+        if (header != null)
+        {
+            return header.EndTime <= DateTime.Now.TimeOfDay;
+        }
+        return false;
+    }
+
+    private async void HandleRealtimeSlotChanged(int courtId, int timeSlotId, SlotStatus newStatus, string? dateStr)
+    {
+        await InvokeAsync(() =>
+        {
+            if (!string.IsNullOrEmpty(dateStr) && dateStr != selectedDate.ToString("yyyy-MM-dd"))
+            {
+                return;
+            }
+
+            if (matrixData != null)
+            {
+                var courtRow = matrixData.Rows.FirstOrDefault(c => c.CourtId == courtId);
+                if (courtRow != null)
+                {
+                    var cell = courtRow.Slots.FirstOrDefault(s => s.TimeSlotId == timeSlotId);
+                    if (cell != null)
+                    {
+                        cell.Status = newStatus;
+                        StateHasChanged();
+                    }
+                }
+            }
+        });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        countdownTimer?.Dispose();
+        RealtimeService.OnSlotStatusChanged -= HandleRealtimeSlotChanged;
+        await RealtimeService.LeaveBranchAsync(selectedBranchId);
+    }
+}

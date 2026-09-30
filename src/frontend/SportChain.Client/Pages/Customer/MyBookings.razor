@@ -1,0 +1,228 @@
+@page "/my-bookings"
+@using SportChain.Shared.DTOs.Bookings
+@using SportChain.Shared.Enums
+@using SportChain.Client.Services
+@inject IApiService ApiService
+@inject NavigationManager NavManager
+
+<PageTitle>Đơn Đặt Của Tôi | SportChain</PageTitle>
+
+<div class="container-fluid px-3 py-3">
+    <!-- Header -->
+    <div class="sport-card p-4 mb-3" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff;">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <span class="badge bg-info px-2 py-1 mb-2"><i class="bi bi-person-badge"></i> KHÁCH HÀNG</span>
+                <h2 class="fw-bold mb-1 brand-font text-white">Lịch Sử & Đơn Đặt Sân Của Tôi</h2>
+                <p class="text-white-50 mb-0 small">
+                    Theo dõi các ca đặt sân, thanh toán cọc đang giữ chỗ và xuất trình mã QR check-in khi đến sân.
+                </p>
+            </div>
+            <button class="btn btn-outline-light btn-sm rounded-pill px-3" @onclick="LoadBookings">
+                <i class="bi bi-arrow-clockwise me-1"></i> Làm mới
+            </button>
+        </div>
+    </div>
+
+    <!-- Active Holding Warning Banner if any -->
+    @if (myBookings != null)
+    {
+        var pendingHolding = myBookings.FirstOrDefault(b => b.Status == BookingStatus.PendingPayment && b.ExpireHoldingAt > DateTime.UtcNow);
+        if (pendingHolding != null)
+        {
+            <div class="alert alert-warning border border-warning-subtle shadow-sm rounded-4 p-3 mb-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="spinner-grow spinner-grow-sm text-warning" role="status"></div>
+                    <div>
+                        <strong class="text-dark">Bạn đang có đơn giữ chỗ chưa cọc: @pendingHolding.CourtName (@string.Join(", ", pendingHolding.SlotLabels))</strong>
+                        <div class="text-muted small">Mã đơn: <code>@pendingHolding.BookingCode</code> | Tiền cọc: <strong class="text-danger">@pendingHolding.DepositAmount.ToString("N0") đ</strong></div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="booking/matrix" class="btn btn-success fw-bold rounded-pill px-3 shadow-sm btn-sm">
+                        <i class="bi bi-qr-code me-1"></i> Thanh Toán Cọc Ngay
+                    </a>
+                    <button class="btn btn-outline-danger fw-bold rounded-pill px-3 btn-sm" @onclick="() => CancelBooking(pendingHolding.Id)">
+                        <i class="bi bi-x-circle me-1"></i> Hủy Giữ Chỗ
+                    </button>
+                </div>
+            </div>
+        }
+    }
+
+    <!-- Bookings Table -->
+    <div class="sport-card p-3">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle small mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã Đơn</th>
+                        <th>Chi Nhánh</th>
+                        <th>Sân Thi Đấu</th>
+                        <th>Ngày Đặt</th>
+                        <th>Khung Ca</th>
+                        <th>Tổng Tiền</th>
+                        <th>Tiền Cọc</th>
+                        <th>Trạng Thái</th>
+                        <th class="text-end">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (isLoading)
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center py-4">
+                                <div class="spinner-border spinner-border-sm text-success me-2"></div> Đang tải danh sách đơn đặt...
+                            </td>
+                        </tr>
+                    }
+                    else if (myBookings != null && myBookings.Count > 0)
+                    {
+                        @foreach (var b in myBookings)
+                        {
+                            <tr>
+                                <td class="font-monospace fw-bold text-dark">@b.BookingCode</td>
+                                <td>@b.BranchName</td>
+                                <td><span class="badge bg-light text-dark border">@b.CourtName</span></td>
+                                <td>@b.BookingDate.ToString("dd/MM/yyyy")</td>
+                                <td><span class="text-primary fw-semibold">@string.Join(", ", b.SlotLabels)</span></td>
+                                <td class="fw-bold">@b.TotalAmount.ToString("N0") đ</td>
+                                <td class="text-danger fw-bold">@b.DepositAmount.ToString("N0") đ</td>
+                                <td>
+                                    <span class="badge @GetStatusBadge(b.Status) px-2 py-1">@b.Status</span>
+                                </td>
+                                <td class="text-end">
+                                    @if (b.Status == BookingStatus.PendingPayment)
+                                    {
+                                        <a href="booking/matrix" class="btn btn-xs btn-success rounded-pill px-3 me-1">
+                                            Cọc 30%
+                                        </a>
+                                        <button class="btn btn-xs btn-outline-danger rounded-pill px-2" @onclick="() => CancelBooking(b.Id)">
+                                            Hủy
+                                        </button>
+                                    }
+                                    else if (b.Status == BookingStatus.Confirmed)
+                                    {
+                                        <button class="btn btn-xs btn-primary rounded-pill px-3" @onclick="() => ViewQrTicket(b)">
+                                            <i class="bi bi-qr-code"></i> Xem Vé QR
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                Bạn chưa có đơn đặt sân nào. Hãy mở <a href="booking/matrix" class="text-success fw-bold">Ma Trận Đặt Sân</a> để trải nghiệm!
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Ticket Dialog -->
+    @if (selectedTicket != null)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content sport-card border-0 shadow-lg text-center p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill">
+                            <i class="bi bi-check-circle-fill"></i> VÉ ĐÃ XÁC NHẬN CỌC
+                        </span>
+                        <button type="button" class="btn-close" @onclick="() => selectedTicket = null"></button>
+                    </div>
+
+                    <h4 class="fw-bold brand-font text-dark mb-1">Vé Điện Tử Check-in</h4>
+                    <p class="text-muted small mb-3">Xuất trình mã QR tại quầy Lễ tân chi nhánh</p>
+
+                    <div class="bg-light p-3 rounded-4 border d-inline-block mx-auto mb-3 shadow-sm">
+                        @if (!string.IsNullOrEmpty(selectedTicket.QrCodeBase64))
+                        {
+                            <img src="@selectedTicket.QrCodeBase64" alt="QR Code" style="width: 180px; height: 180px;" class="rounded-3" />
+                        }
+                        else
+                        {
+                            <img src="images/vietqr_custom.jpg" alt="QR Code" style="width: 180px; height: 180px; object-fit: contain;" class="rounded-3" />
+                        }
+                        <div class="font-monospace fw-bold text-dark mt-2 tracking-wider">@selectedTicket.CheckInCode</div>
+                    </div>
+
+                    <div class="bg-light rounded-3 p-3 text-start small mb-3">
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Mã đơn:</span>
+                            <span class="fw-bold">@selectedTicket.BookingCode</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Sân:</span>
+                            <span class="fw-bold text-success">@selectedTicket.CourtName</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Ngày chơi:</span>
+                            <span class="fw-bold">@selectedTicket.BookingDate.ToString("dd/MM/yyyy")</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1">
+                            <span class="text-muted">Khung ca:</span>
+                            <span class="fw-bold text-primary">@string.Join(", ", selectedTicket.SlotLabels)</span>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-dark fw-bold rounded-pill w-100 py-2" @onclick="() => selectedTicket = null">
+                        Đóng Vé
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<BookingDto>? myBookings;
+    private bool isLoading = true;
+    private BookingDto? selectedTicket;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBookings();
+    }
+
+    private async Task LoadBookings()
+    {
+        isLoading = true;
+        var res = await ApiService.GetMyBookingsAsync();
+        if (res.Success && res.Data != null)
+        {
+            myBookings = res.Data;
+        }
+        isLoading = false;
+    }
+
+    private async Task CancelBooking(int bookingId)
+    {
+        var res = await ApiService.CancelBookingAsync(bookingId, new CancelBookingRequest { Reason = "Khách hàng chủ động hủy giữ chỗ." });
+        if (res.Success)
+        {
+            await LoadBookings();
+        }
+    }
+
+    private void ViewQrTicket(BookingDto booking)
+    {
+        selectedTicket = booking;
+    }
+
+    private string GetStatusBadge(BookingStatus status) => status switch
+    {
+        BookingStatus.PendingPayment => "bg-warning text-dark",
+        BookingStatus.Confirmed => "bg-primary text-white",
+        BookingStatus.InUse => "bg-purple text-white",
+        BookingStatus.Completed => "bg-success text-white",
+        BookingStatus.Cancelled => "bg-danger text-white",
+        BookingStatus.NoShow => "bg-dark text-white",
+        _ => "bg-secondary text-white"
+    };
+}

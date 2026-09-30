@@ -1,47 +1,214 @@
 @page "/admin/dashboard"
-@using SportChain.Shared.Enums
+@using SportChain.Shared.DTOs.Admin
+@using SportChain.Client.Services
+@inject IApiService ApiService
 
-<div class="container-fluid p-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold text-primary">📊 Dashboard Quản Trị Toàn Chuỗi</h2>
-            <p class="text-muted">Tổng quan doanh thu, tỷ lệ lấp đầy sân và giám sát các chi nhánh trên toàn quốc</p>
+<PageTitle>Dashboard Quản Trị Chuỗi | SportChain</PageTitle>
+
+@if (ApiService.CurrentUser == null || ApiService.CurrentUser.Role != SportChain.Shared.Enums.UserRole.SuperAdmin)
+{
+    <div class="container-fluid p-4">
+        <div class="sport-card p-5 text-center my-4 border-danger shadow-sm">
+            <div class="d-inline-flex p-3 rounded-circle bg-danger-subtle text-danger mb-3">
+                <i class="bi bi-shield-slash-fill display-4"></i>
+            </div>
+            <h3 class="fw-bold text-dark">Quyền Truy Cập Bị Giới Hạn (403 Forbidden)</h3>
+            <p class="text-muted">Trang Dashboard Quản Trị Chuỗi chỉ dành riêng cho tài khoản <strong>SuperAdmin (Quản trị viên tối cao)</strong>.</p>
+            <p class="text-muted small">Tài khoản hiện tại: <strong>@(ApiService.CurrentUser?.FullName ?? "Chưa đăng nhập")</strong> (Vai trò: <code>@(ApiService.CurrentUser?.Role.ToString() ?? "Guest")</code>).</p>
+            <a href="booking/matrix" class="btn btn-primary fw-bold rounded-pill px-4 mt-2">
+                <i class="bi bi-arrow-left me-1"></i> Quay về Trang Đặt Sân
+            </a>
         </div>
-        <div class="d-flex gap-2">
-            <button class="btn btn-outline-primary"><i class="bi bi-file-earmark-excel"></i> Xuất Excel</button>
-            <button class="btn btn-primary"><i class="bi bi-file-earmark-pdf"></i> Xuất Báo Cáo PDF</button>
+    </div>
+}
+else
+{
+<div class="container-fluid px-3 py-3">
+    <!-- Header -->
+    <div class="sport-card p-4 mb-4" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <span class="badge bg-info px-2 py-1 mb-2"><i class="bi bi-shield-shaded"></i> SUPERADMIN EXECUTIVE VIEW</span>
+                <h2 class="fw-bold mb-1 brand-font text-white">Dashboard Quản Trị Toàn Chuỗi Sân</h2>
+                <p class="text-white-50 mb-0 small">
+                    Tổng quan doanh thu, tỷ lệ lấp đầy sân, quản lý khiếu nại và giám sát nhật ký kiểm toán hệ thống.
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-light btn-sm rounded-pill px-3" @onclick="LoadData">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Cập Nhật Số Liệu
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Hàng thống kê tổng quan -->
+    <!-- Stats Cards Row -->
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card shadow-sm border-0 bg-primary text-white p-3">
-                <h5>Tổng Doanh Thu Chuỗi</h5>
-                <h3 class="fw-bold">1,250,000,000 đ</h3>
-                <small>↑ 12% so với tháng trước</small>
+        <div class="col-md-3 col-sm-6">
+            <div class="sport-card p-3 border-0 bg-primary text-white h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-white-50 fw-semibold text-uppercase">Doanh Thu Chuỗi</span>
+                    <i class="bi bi-cash-coin fs-4"></i>
+                </div>
+                <h3 class="fw-bold mb-1">@((stats?.TotalRevenue ?? 1_250_000_000m).ToString("N0")) đ</h3>
+                <small class="text-white-50"><i class="bi bi-arrow-up-right text-warning"></i> Bao gồm cọc & tiền sân</small>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm border-0 bg-success text-white p-3">
-                <h5>Tỷ Lệ Lấp Đầy TB</h5>
-                <h3 class="fw-bold">78.5%</h3>
-                <small>Giờ cao điểm đạt 95%</small>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="sport-card p-3 border-0 bg-success text-white h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-white-50 fw-semibold text-uppercase">Tổng Sân Hoạt Động</span>
+                    <i class="bi bi-grid-3x3 fs-4"></i>
+                </div>
+                <h3 class="fw-bold mb-1">@(stats?.TotalCourts ?? 11) Sân</h3>
+                <small class="text-white-50">Tại @(stats?.TotalBranches ?? 3) Chi nhánh chuẩn hóa</small>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm border-0 bg-warning text-dark p-3">
-                <h5>Tổng Số Chi Nhánh</h5>
-                <h3 class="fw-bold">8 Cơ Sở</h3>
-                <small>2 cơ sở đang chờ duyệt</small>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="sport-card p-3 border-0 bg-warning text-dark h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-dark-50 fw-semibold text-uppercase">Đơn Đặt / Đã Cọc</span>
+                    <i class="bi bi-check2-circle fs-4"></i>
+                </div>
+                <h3 class="fw-bold mb-1">@(stats?.ConfirmedCount ?? 1) Đã Cọc</h3>
+                <small class="text-dark-50">Tổng cộng @(stats?.TotalBookings ?? 6) đơn trong hệ thống</small>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm border-0 bg-danger text-white p-3">
-                <h5>Tỷ Lệ Vắng Mặt (No-Show)</h5>
-                <h3 class="fw-bold">3.2%</h3>
-                <small>↓ 1.5% nhờ cơ chế cọc 15p</small>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="sport-card p-3 border-0 bg-danger text-white h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-white-50 fw-semibold text-uppercase">Tỷ Lệ Vắng Mặt (No-Show)</span>
+                    <i class="bi bi-person-x-fill fs-4"></i>
+                </div>
+                <h3 class="fw-bold mb-1">@(stats?.NoShowCount ?? 1) Ca</h3>
+                <small class="text-white-50"><i class="bi bi-shield-lock-fill"></i> Tự động thu cọc sau 15p</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Logs & Complaints -->
+    <div class="row g-3">
+        <!-- Audit Logs Table -->
+        <div class="col-lg-7">
+            <div class="sport-card p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold brand-font text-dark mb-0"><i class="bi bi-journal-text text-primary me-2"></i>Nhật Ký Kiểm Toán (Audit Logs)</h5>
+                    <span class="badge bg-light text-muted border">@(auditLogs?.Count ?? 0) logs gần nhất</span>
+                </div>
+                <div class="table-responsive" style="max-height: 380px;">
+                    <table class="table table-sm table-hover align-middle small mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Thời Gian</th>
+                                <th>Người Thực Hiện</th>
+                                <th>Hành Động</th>
+                                <th>Chi Tiết</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (auditLogs != null && auditLogs.Count > 0)
+                            {
+                                @foreach (var log in auditLogs)
+                                {
+                                    <tr>
+                                        <td class="text-muted text-nowrap">@log.Timestamp.ToString("dd/MM HH:mm")</td>
+                                        <td class="fw-semibold">@log.UserName</td>
+                                        <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle">@log.Action</span></td>
+                                        <td class="text-muted">@log.Details</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">Chưa có nhật ký kiểm toán hoặc cần quyền SuperAdmin để xem.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Complaints Table -->
+        <div class="col-lg-5">
+            <div class="sport-card p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold brand-font text-dark mb-0"><i class="bi bi-chat-left-dots text-danger me-2"></i>Khiếu Nại Khách Hàng</h5>
+                    <span class="badge bg-light text-muted border">@(complaints?.Count ?? 0) khiếu nại</span>
+                </div>
+                <div class="table-responsive" style="max-height: 380px;">
+                    <table class="table table-sm table-hover align-middle small mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Khách Hàng</th>
+                                <th>Nội Dung</th>
+                                <th>Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (complaints != null && complaints.Count > 0)
+                            {
+                                @foreach (var c in complaints)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">@c.CustomerName</div>
+                                            <small class="text-muted">@c.BranchName</small>
+                                        </td>
+                                        <td><small class="text-dark">@c.Content</small></td>
+                                        <td>
+                                            <span class="badge @(c.Status == "Đã giải quyết" ? "bg-success" : "bg-warning text-dark")">@c.Status</span>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-3">Không có khiếu nại nào cần xử lý.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
+}
+
+@code {
+    private ChainStatsDto? stats;
+    private List<AuditLogDto>? auditLogs;
+    private List<ComplaintDto>? complaints;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ApiService.OnAuthStateChanged += async () =>
+        {
+            await LoadData();
+            StateHasChanged();
+        };
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        if (ApiService.CurrentUser?.Role == SportChain.Shared.Enums.UserRole.SuperAdmin)
+        {
+            var statsRes = await ApiService.GetChainStatsAsync();
+            if (statsRes.Success) stats = statsRes.Data;
+
+            var logsRes = await ApiService.GetAuditLogsAsync(20);
+            if (logsRes.Success) auditLogs = logsRes.Data;
+
+            var compRes = await ApiService.GetComplaintsAsync();
+            if (compRes.Success) complaints = compRes.Data;
+        }
+    }
+}

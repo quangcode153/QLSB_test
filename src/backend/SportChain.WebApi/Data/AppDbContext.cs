@@ -41,6 +41,27 @@ public class AppDbContext : DbContext
             .HasIndex(b => b.CheckInCode)
             .IsUnique();
 
+        // Composite Indexes tối ưu hóa truy vấn ma trận lịch, POS & Background Worker
+        modelBuilder.Entity<Booking>()
+            .HasIndex(b => new { b.BranchId, b.BookingDate, b.Status })
+            .HasDatabaseName("IX_Bookings_Branch_Date_Status");
+
+        modelBuilder.Entity<Booking>()
+            .HasIndex(b => b.CustomerId)
+            .HasDatabaseName("IX_Bookings_CustomerId");
+
+        modelBuilder.Entity<BookingDetail>()
+            .HasIndex(bd => new { bd.BookingId, bd.TimeSlotId })
+            .HasDatabaseName("IX_BookingDetails_Booking_TimeSlot");
+
+        modelBuilder.Entity<Court>()
+            .HasIndex(c => new { c.BranchId, c.IsActive })
+            .HasDatabaseName("IX_Courts_Branch_IsActive");
+
+        modelBuilder.Entity<AuditLog>()
+            .HasIndex(a => new { a.Timestamp, a.UserId })
+            .HasDatabaseName("IX_AuditLogs_Timestamp_UserId");
+
         // Ràng buộc số thập phân tiền tệ
         modelBuilder.Entity<Booking>()
             .Property(b => b.TotalAmount)

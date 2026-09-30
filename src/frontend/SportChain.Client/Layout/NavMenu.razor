@@ -1,29 +1,94 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">SportChain.Client</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
+@inject SportChain.Client.Services.IApiService ApiService
+@using SportChain.Shared.Enums
+@implements IDisposable
+
+<div class="top-row ps-3 pe-3 navbar navbar-dark d-flex justify-content-between align-items-center" style="background: #0f172a; border-bottom: 1px solid rgba(255,255,255,0.08);">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="">
+        <span class="fs-4 text-success"><i class="bi bi-trophy-fill"></i></span>
+        <span class="fw-bold tracking-tight" style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;">SportChain</span>
+    </a>
+    <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+        <span class="navbar-toggler-icon"></span>
+    </button>
 </div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu" style="background: #0f172a;">
+    <nav class="flex-column py-2">
+        <!-- Trang Chủ Chung -->
+        <div class="nav-item px-3 mb-1">
+            <NavLink class="nav-link rounded-3 d-flex align-items-center gap-2 text-nowrap" href="" Match="NavLinkMatch.All">
+                <i class="bi bi-house-door-fill text-secondary fs-5"></i>
+                <span>Trang Giới Thiệu</span>
             </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+
+        <!-- MÔI TRƯỜNG KHÁCH HÀNG: Hiển thị cho Customer hoặc khi chưa đăng nhập, hoặc SuperAdmin muốn kiểm tra -->
+        <div class="px-3 pt-2 pb-1 text-uppercase text-muted text-nowrap" style="font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;">
+            Khách Hàng
+        </div>
+        <div class="nav-item px-3 mb-1">
+            <NavLink class="nav-link rounded-3 d-flex align-items-center gap-2 text-nowrap" href="booking/matrix">
+                <i class="bi bi-grid-3x3-gap-fill text-success fs-5"></i>
+                <span>Ma Trận Đặt Sân</span>
             </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
+        @if (ApiService.CurrentUser?.Role == UserRole.Customer || ApiService.CurrentUser?.Role == UserRole.SuperAdmin)
+        {
+            <div class="nav-item px-3 mb-1">
+                <NavLink class="nav-link rounded-3 d-flex align-items-center gap-2 text-nowrap" href="my-bookings">
+                    <i class="bi bi-ticket-perforated-fill text-info fs-5"></i>
+                    <span>Đơn Đặt Của Tôi</span>
+                </NavLink>
+            </div>
+        }
+
+        <!-- MÔI TRƯỜNG LỄ TÂN & VẬN HÀNH: Cho Receptionist, BranchManager, SuperAdmin -->
+        @if (CanAccessPos)
+        {
+            <div class="px-3 pt-3 pb-1 text-uppercase text-muted text-nowrap" style="font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;">
+                Quầy Lễ Tân & POS
+            </div>
+            <div class="nav-item px-3 mb-1">
+                <NavLink class="nav-link rounded-3 d-flex align-items-center gap-2 text-nowrap" href="branch/pos">
+                    <i class="bi bi-pc-display text-warning fs-5"></i>
+                    <span>POS Thu Ngân & Check-in</span>
+                </NavLink>
+            </div>
+        }
+
+        <!-- MÔI TRƯỜNG QUẢN LÝ CƠ SỞ: Cho BranchManager, SuperAdmin -->
+        @if (CanAccessBranchManager)
+        {
+            <div class="px-3 pt-3 pb-1 text-uppercase text-muted text-nowrap" style="font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;">
+                Quản Lý Cơ Sở
+            </div>
+            <div class="nav-item px-3 mb-1">
+                <NavLink class="nav-link rounded-3 d-flex align-items-center gap-2 text-nowrap" href="branch/dashboard">
+                    <i class="bi bi-building-fill text-primary fs-5"></i>
+                    <span>Bàn Làm Việc Chi Nhánh</span>
+                </NavLink>
+            </div>
+        }
+
+        <!-- MÔI TRƯỜNG QUẢN TRỊ TOÀN CHUỖI: Chỉ dành riêng cho SuperAdmin -->
+        @if (CanAccessSuperAdmin)
+        {
+            <div class="px-3 pt-3 pb-1 text-uppercase text-muted text-nowrap" style="font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;">
+                Quản Trị Hệ Thống
+            </div>
+            <div class="nav-item px-3 mb-1">
+                <NavLink class="nav-link rounded-3 d-flex align-items-center gap-2 text-nowrap" href="admin/dashboard">
+                    <i class="bi bi-bar-chart-line-fill text-danger fs-5"></i>
+                    <span>Dashboard Chuỗi</span>
+                </NavLink>
+            </div>
+            <div class="nav-item px-3 mb-1">
+                <NavLink class="nav-link rounded-3 d-flex align-items-center gap-2 text-nowrap" href="admin/users">
+                    <i class="bi bi-people-fill text-danger fs-5"></i>
+                    <span>Quản Trị Nhân Sự</span>
+                </NavLink>
+            </div>
+        }
     </nav>
 </div>
 
@@ -32,8 +97,27 @@
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
+    private bool CanAccessPos => ApiService.CurrentUser?.Role == UserRole.SuperAdmin ||
+                                 ApiService.CurrentUser?.Role == UserRole.BranchManager ||
+                                 ApiService.CurrentUser?.Role == UserRole.Receptionist;
+
+    private bool CanAccessBranchManager => ApiService.CurrentUser?.Role == UserRole.SuperAdmin ||
+                                          ApiService.CurrentUser?.Role == UserRole.BranchManager;
+
+    private bool CanAccessSuperAdmin => ApiService.CurrentUser?.Role == UserRole.SuperAdmin;
+
+    protected override void OnInitialized()
+    {
+        ApiService.OnAuthStateChanged += StateHasChanged;
+    }
+
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
+    }
+
+    public void Dispose()
+    {
+        ApiService.OnAuthStateChanged -= StateHasChanged;
     }
 }

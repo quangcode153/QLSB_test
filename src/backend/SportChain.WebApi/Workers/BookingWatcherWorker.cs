@@ -32,13 +32,27 @@ public class BookingWatcherWorker : BackgroundService
                     await bookingService.AutoMarkNoShowsAsync();
                 }
             }
+            catch (OperationCanceledException)
+            {
+                // Máy chủ đang dừng hoạt động, thoát vòng lặp êm dịu
+                break;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ [Worker] Có lỗi xảy ra trong tiến trình kiểm tra đơn đặt sân.");
             }
 
-            // Chờ 60 giây cho chu kỳ quét tiếp theo
-            await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
+            try
+            {
+                // Chờ 60 giây cho chu kỳ quét tiếp theo
+                await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
+
+        _logger.LogInformation("🛑 [Worker] BookingWatcherWorker đã dừng an toàn.");
     }
 }

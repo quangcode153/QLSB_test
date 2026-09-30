@@ -1,6 +1,292 @@
-@SportChain.WebApi_HostAddress = http://localhost:5097
+@Host = http://localhost:5097
+@ContentType = application/json
 
-GET {{SportChain.WebApi_HostAddress}}/weatherforecast/
-Accept: application/json
+### =========================================================================
+### 1. XÁC THỰC & PHÂN QUYỀN (AUTH CONTROLLER)
+### =========================================================================
 
-###
+### 1.1 Đăng nhập với quyền SuperAdmin
+# @name loginAdmin
+POST {{Host}}/api/Auth/login
+Content-Type: {{ContentType}}
+
+{
+  "email": "admin@sportchain.vn",
+  "password": "123456"
+}
+
+### Lưu token Admin tự động
+@adminToken = {{loginAdmin.response.body.data.token}}
+
+### 1.2 Đăng nhập với quyền BranchManager (Quản lý Cầu Giấy)
+# @name loginManager
+POST {{Host}}/api/Auth/login
+Content-Type: {{ContentType}}
+
+{
+  "email": "manager.caugiay@sportchain.vn",
+  "password": "123456"
+}
+
+### Lưu token Manager
+@managerToken = {{loginManager.response.body.data.token}}
+
+### 1.3 Đăng nhập với quyền Receptionist (Lễ tân Cầu Giấy)
+# @name loginReceptionist
+POST {{Host}}/api/Auth/login
+Content-Type: {{ContentType}}
+
+{
+  "email": "reception.caugiay@sportchain.vn",
+  "password": "123456"
+}
+
+### Lưu token Receptionist
+@receptionToken = {{loginReceptionist.response.body.data.token}}
+
+### 1.4 Đăng nhập với quyền Customer (Khách hàng)
+# @name loginCustomer
+POST {{Host}}/api/Auth/login
+Content-Type: {{ContentType}}
+
+{
+  "email": "khachhang@gmail.com",
+  "password": "123456"
+}
+
+### Lưu token Customer
+@customerToken = {{loginCustomer.response.body.data.token}}
+
+### 1.5 Đăng ký tài khoản Khách hàng mới
+POST {{Host}}/api/Auth/register
+Content-Type: {{ContentType}}
+
+{
+  "fullName": "Nguyễn Văn Test",
+  "email": "testuser99@gmail.com",
+  "phoneNumber": "0912345678",
+  "password": "123456"
+}
+
+### 1.6 Lấy thông tin tài khoản hiện tại (Me)
+GET {{Host}}/api/Auth/me
+Authorization: Bearer {{customerToken}}
+
+
+### =========================================================================
+### 2. QUẢN LÝ CHI NHÁNH (BRANCHES CONTROLLER)
+### =========================================================================
+
+### 2.1 Lấy danh sách tất cả chi nhánh đang hoạt động
+GET {{Host}}/api/Branches?onlyApproved=true
+
+### 2.2 Xem chi tiết chi nhánh Cầu Giấy (ID: 1)
+GET {{Host}}/api/Branches/1
+
+### 2.3 Tạo mới chi nhánh (Cần quyền Admin / BranchManager)
+POST {{Host}}/api/Branches
+Authorization: Bearer {{adminToken}}
+Content-Type: {{ContentType}}
+
+{
+  "name": "SportChain Tây Hồ - Hồ Tây Sports Club",
+  "address": "250 Đường Lạc Long Quân, Tây Hồ",
+  "city": "Hà Nội",
+  "latitude": 21.0556,
+  "longitude": 105.8152,
+  "phoneNumber": "024.3999.8888",
+  "openTimeLabel": "06:00",
+  "closeTimeLabel": "23:00"
+}
+
+### 2.4 Duyệt hoạt động chi nhánh mới (SuperAdmin)
+PATCH {{Host}}/api/Branches/4/approve
+Authorization: Bearer {{adminToken}}
+
+### 2.5 Bật / Tắt trạng thái hoạt động chi nhánh
+PATCH {{Host}}/api/Branches/1/toggle-status
+Authorization: Bearer {{adminToken}}
+
+
+### =========================================================================
+### 3. QUẢN LÝ SÂN & MA TRẬN LỊCH (COURTS CONTROLLER)
+### =========================================================================
+
+### 3.1 Lấy danh sách sân tại chi nhánh Cầu Giấy (ID: 1)
+GET {{Host}}/api/Courts/branch/1
+
+### 3.2 Lọc sân theo môn thể thao (Pickleball = 1, Badminton = 2, Football = 3, Tennis = 4)
+GET {{Host}}/api/Courts/branch/1?sportType=1
+
+### 3.3 Xem chi tiết một sân theo ID
+GET {{Host}}/api/Courts/1
+
+### 3.4 Lấy Ma Trận Lịch Sân Realtime (Interactive Matrix) hôm nay
+GET {{Host}}/api/Courts/branch/1/matrix
+
+### 3.5 Lấy Ma Trận Lịch Sân theo ngày chỉ định
+GET {{Host}}/api/Courts/branch/1/matrix?date=2026-10-01
+
+### 3.6 Thêm sân mới vào chi nhánh
+POST {{Host}}/api/Courts
+Authorization: Bearer {{managerToken}}
+Content-Type: {{ContentType}}
+
+{
+  "branchId": 1,
+  "name": "Sân Pickleball Pro 5 (Trong nhà)",
+  "sportType": 1,
+  "surfaceType": "Thảm tiêu chuẩn USAPA",
+  "defaultPrice": 160000
+}
+
+### 3.7 Cập nhật trạng thái sân (Available = 1, Holding = 2, Confirmed = 3, InUse = 4, Maintenance = 5)
+PATCH {{Host}}/api/Courts/1/status
+Authorization: Bearer {{receptionToken}}
+Content-Type: {{ContentType}}
+
+5
+
+
+### =========================================================================
+### 4. NGHIỆP VỤ ĐẶT SÂN & KHÓA CA (BOOKINGS CONTROLLER)
+### =========================================================================
+
+### 4.1 Khách hàng tạo đơn giữ chỗ 15 phút (Holding Lock 15p - Concurrency)
+# @name createHolding
+POST {{Host}}/api/Bookings/hold
+Authorization: Bearer {{customerToken}}
+Content-Type: {{ContentType}}
+
+{
+  "courtId": 1,
+  "bookingDate": "2026-10-02",
+  "timeSlotIds": [12, 13]
+}
+
+### Lưu ID đơn đặt vừa tạo
+@holdingBookingId = {{createHolding.response.body.data.id}}
+
+### 4.2 Khách hàng xác nhận đặt cọc 30% qua chuyển khoản / QR
+POST {{Host}}/api/Bookings/{{holdingBookingId}}/confirm-deposit
+Authorization: Bearer {{customerToken}}
+Content-Type: {{ContentType}}
+
+{
+  "paymentMethod": 2
+}
+
+### 4.3 Xem chi tiết đơn đặt sân (kèm mã QR Base64)
+GET {{Host}}/api/Bookings/{{holdingBookingId}}
+
+### 4.4 Khách hàng xem lịch sử đặt sân của mình
+GET {{Host}}/api/Bookings/my-bookings
+Authorization: Bearer {{customerToken}}
+
+### 4.5 Quét mã QR check-in tại quầy lễ tân (Mã Check-in 32 ký tự)
+POST {{Host}}/api/Bookings/check-in
+Content-Type: {{ContentType}}
+
+{
+  "checkInCode": "A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4"
+}
+
+### 4.6 Hủy đơn đặt sân (Tự động hoàn tiền hoặc thu cọc theo chính sách trước 2h)
+POST {{Host}}/api/Bookings/{{holdingBookingId}}/cancel
+Authorization: Bearer {{customerToken}}
+Content-Type: {{ContentType}}
+
+{
+  "reason": "Bận việc đột xuất không thể tới sân thi đấu"
+}
+
+### 4.7 Lễ tân / Quản lý xem toàn bộ đơn đặt sân tại chi nhánh trong ngày
+GET {{Host}}/api/Bookings/branch/1?date=2026-10-02
+Authorization: Bearer {{receptionToken}}
+
+
+### =========================================================================
+### 5. VẬN HÀNH POS LỄ TÂN TẠI QUẦY (POS CONTROLLER)
+### =========================================================================
+
+### 5.1 Đặt sân cho khách vãng lai trực tiếp tại quầy (Thanh toán 100% vào sân ngay)
+# @name walkInBooking
+POST {{Host}}/api/Pos/walk-in
+Authorization: Bearer {{receptionToken}}
+Content-Type: {{ContentType}}
+
+{
+  "customerName": "Lê Văn Khách Lẻ",
+  "customerPhone": "0987654321",
+  "branchId": 1,
+  "courtId": 2,
+  "bookingDate": "2026-10-02",
+  "timeSlotIds": [14],
+  "paymentMethod": 1
+}
+
+### Lưu ID đơn vãng lai
+@walkInBookingId = {{walkInBooking.response.body.data.bookingId}}
+
+### 5.2 Thêm nước uống / thuê vợt vào đơn đang chơi
+POST {{Host}}/api/Pos/add-service
+Authorization: Bearer {{receptionToken}}
+Content-Type: {{ContentType}}
+
+{
+  "bookingId": {{walkInBookingId}},
+  "serviceItemId": 1,
+  "quantity": 3
+}
+
+### 5.3 Thêm thuê vợt Yonex vào đơn đang chơi
+POST {{Host}}/api/Pos/add-service
+Authorization: Bearer {{receptionToken}}
+Content-Type: {{ContentType}}
+
+{
+  "bookingId": {{walkInBookingId}},
+  "serviceItemId": 3,
+  "quantity": 2
+}
+
+### 5.4 Lấy thông tin hóa đơn POS chi tiết trước khi thanh toán
+GET {{Host}}/api/Pos/invoice/{{walkInBookingId}}
+Authorization: Bearer {{receptionToken}}
+
+### 5.5 Hoàn tất thanh toán tại quầy & giải phóng sân
+POST {{Host}}/api/Pos/complete-payment
+Authorization: Bearer {{receptionToken}}
+Content-Type: {{ContentType}}
+
+{
+  "bookingId": {{walkInBookingId}},
+  "paymentMethod": 1
+}
+
+
+### =========================================================================
+### 6. QUẢN TRỊ TOÀN CHUỖI (ADMIN CONTROLLER)
+### =========================================================================
+
+### 6.1 Báo cáo thống kê toàn chuỗi (Doanh thu, Tỷ lệ lấp đầy, No-show, Hủy đơn)
+GET {{Host}}/api/Admin/stats
+Authorization: Bearer {{adminToken}}
+
+### 6.2 Xem danh sách nhật ký kiểm toán (Audit Logs)
+GET {{Host}}/api/Admin/audit-logs?limit=20
+Authorization: Bearer {{adminToken}}
+
+### 6.3 Xem danh sách khiếu nại của khách hàng
+GET {{Host}}/api/Admin/complaints
+Authorization: Bearer {{adminToken}}
+
+### 6.4 Xử lý và phản hồi khiếu nại
+PATCH {{Host}}/api/Admin/complaints/1/resolve
+Authorization: Bearer {{adminToken}}
+Content-Type: {{ContentType}}
+
+{
+  "status": "Đã giải quyết",
+  "resolution": "Đã hoàn 100% tiền đặt cọc vào tài khoản ví của khách hàng do sự cố đèn sân."
+}

@@ -5,6 +5,7 @@
   </Folder>
   <Folder Name="/src/frontend/">
     <Project Path="src/frontend/SportChain.Client/SportChain.Client.csproj" />
+    <Project Path="src/frontend/SportChain.WinForms/SportChain.WinForms.csproj" />
   </Folder>
   <Folder Name="/src/shared/">
     <Project Path="src/shared/SportChain.Shared/SportChain.Shared.csproj" />

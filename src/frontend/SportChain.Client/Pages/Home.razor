@@ -1,7 +1,589 @@
-﻿@page "/"
+@page "/"
+@inject SportChain.Client.Services.IApiService ApiService
+@inject NavigationManager Navigation
+@using SportChain.Shared.DTOs.Auth
+@using SportChain.Shared.DTOs.Courts
+@using SportChain.Shared.Enums
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Hệ Thống Chuỗi Sân Thể Thao Thông Minh | SportChain</PageTitle>
 
-<h1>Hello, world!</h1>
+@if (ApiService.CurrentUser != null)
+{
+    <!-- TRẠNG THÁI: NGƯỜI DÙNG ĐÃ ĐĂNG NHẬP -->
+    <div class="container-fluid px-3 py-4">
+        <div class="sport-card p-4 p-md-5 mb-4 text-white shadow-lg" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, @GetRoleColorHex(ApiService.CurrentUser.Role) 100%);">
+            <div class="row align-items-center g-4">
+                <div class="col-lg-8">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge bg-white text-dark px-3 py-1 rounded-pill fw-bold">
+                            <i class="bi bi-person-check-fill me-1"></i> ĐÃ ĐĂNG NHẬP
+                        </span>
+                        <span class="badge rounded-pill px-3 py-1 fw-bold" style="background: rgba(255,255,255,0.2);">
+                            @GetRoleBadgeText(ApiService.CurrentUser.Role)
+                        </span>
+                    </div>
+                    <h1 class="display-6 fw-bold brand-font mb-2">Xin chào, @ApiService.CurrentUser.FullName!</h1>
+                    <p class="lead text-white-50 mb-4" style="font-size: 1.05rem;">
+                        Bạn đang đăng nhập với vai trò <strong>@ApiService.CurrentUser.Role</strong>. Hệ thống đã sẵn sàng không gian làm việc chuyên biệt cho bạn.
+                    </p>
+                    <div class="d-flex flex-wrap gap-3">
+                        <button class="btn btn-warning btn-lg fw-bold rounded-pill px-4 shadow text-dark" @onclick="NavigateToRoleWorkspace">
+                            <i class="bi bi-box-arrow-in-right me-2"></i> Vào Không Gian Làm Việc Của Bạn
+                        </button>
+                        <button class="btn btn-outline-light btn-lg fw-bold rounded-pill px-4" @onclick="HandleLogout">
+                            <i class="bi bi-box-arrow-right me-2"></i> Đăng Xuất
+                        </button>
+                    </div>
+                </div>
+                <div class="col-lg-4 text-center d-none d-lg-block">
+                    <div class="p-4 bg-white bg-opacity-10 rounded-4 border border-white-50 shadow-lg backdrop-blur">
+                        <i class="@GetRoleIcon(ApiService.CurrentUser.Role) display-1 text-warning mb-2"></i>
+                        <h4 class="fw-bold mt-2">@ApiService.CurrentUser.FullName</h4>
+                        <p class="small text-white-50 mb-0">@ApiService.CurrentUser.Email</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-Welcome to your new app.
+        <!-- Role Workspace Quick Cards -->
+        <h4 class="fw-bold brand-font mb-3 text-dark">
+            <i class="bi bi-compass-fill text-success me-2"></i> Các Không Gian Hệ Thống Theo Phân Quyền
+        </h4>
+        <div class="row g-3">
+            <!-- Customer -->
+            <div class="col-md-6 col-xl-3">
+                <div class="sport-card p-4 h-100 d-flex flex-column justify-content-between border-top border-success border-4">
+                    <div>
+                        <div class="d-inline-flex p-3 rounded-4 bg-success-subtle text-success mb-3 fs-4">
+                            <i class="bi bi-grid-3x3-gap-fill"></i>
+                        </div>
+                        <h5 class="fw-bold brand-font text-dark">Khách Hàng (Customer)</h5>
+                        <p class="text-muted small">
+                            Xem ma trận lịch sân theo ngày, tự chọn ca giờ realtime qua WebSocket, đặt cọc giữ slot 15 phút và nhận vé điện tử QR Code.
+                        </p>
+                    </div>
+                    <a href="booking/matrix" class="btn btn-outline-success fw-bold rounded-pill w-100 mt-3">
+                        Ma Trận Sân <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Receptionist -->
+            <div class="col-md-6 col-xl-3">
+                <div class="sport-card p-4 h-100 d-flex flex-column justify-content-between border-top border-warning border-4">
+                    <div>
+                        <div class="d-inline-flex p-3 rounded-4 bg-warning-subtle text-warning-emphasis mb-3 fs-4">
+                            <i class="bi bi-upc-scan"></i>
+                        </div>
+                        <h5 class="fw-bold brand-font text-dark">Lễ Tân (Receptionist)</h5>
+                        <p class="text-muted small">
+                            Quét mã QR check-in khách vào sân, tạo đơn khách vãng lai trực tiếp, bán đồ uống/thuê đồ và thanh toán in hóa đơn K80.
+                        </p>
+                    </div>
+                    <a href="branch/pos" class="btn btn-outline-warning text-dark fw-bold rounded-pill w-100 mt-3">
+                        POS Desk Lễ Tân <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Branch Manager -->
+            <div class="col-md-6 col-xl-3">
+                <div class="sport-card p-4 h-100 d-flex flex-column justify-content-between border-top border-primary border-4">
+                    <div>
+                        <div class="d-inline-flex p-3 rounded-4 bg-primary-subtle text-primary mb-3 fs-4">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <h5 class="fw-bold brand-font text-dark">Quản Lý Chi Nhánh (Manager)</h5>
+                        <p class="text-muted small">
+                            Môi trường điều hành cơ sở: Giám sát công suất sân, doanh thu hôm nay, trạng thái các sân con và lịch trình phục vụ khách.
+                        </p>
+                    </div>
+                    <a href="branch/dashboard" class="btn btn-outline-primary fw-bold rounded-pill w-100 mt-3">
+                        Dashboard Cơ Sở <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Super Admin -->
+            <div class="col-md-6 col-xl-3">
+                <div class="sport-card p-4 h-100 d-flex flex-column justify-content-between border-top border-danger border-4">
+                    <div>
+                        <div class="d-inline-flex p-3 rounded-4 bg-danger-subtle text-danger mb-3 fs-4">
+                            <i class="bi bi-shield-lock-fill"></i>
+                        </div>
+                        <h5 class="fw-bold brand-font text-dark">Quản Trị Chuỗi (SuperAdmin)</h5>
+                        <p class="text-muted small">
+                            Báo cáo doanh thu toàn quốc, phê duyệt chi nhánh mới, phân quyền cấp phát tài khoản nhân sự và kiểm soát audit logs.
+                        </p>
+                    </div>
+                    <a href="admin/dashboard" class="btn btn-outline-danger fw-bold rounded-pill w-100 mt-3">
+                        Quản Trị Hệ Thống <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <!-- TRẠNG THÁI: LANDING PAGE GIỚI THIỆU + FORM LOGIN/REGISTER -->
+    <div class="container-fluid px-0">
+        <!-- Hero Section -->
+        <div class="position-relative overflow-hidden py-5 px-3 px-md-5" style="background: linear-gradient(135deg, #090d16 0%, #0f172a 60%, #064e3b 100%); color: #ffffff;">
+            <div class="container py-4">
+                <div class="row align-items-center g-5">
+                    <div class="col-lg-7">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <span class="badge bg-success px-3 py-1.5 rounded-pill fw-bold text-uppercase" style="letter-spacing: 0.05em;">
+                                <i class="bi bi-lightning-charge-fill me-1"></i> SportChain VN
+                            </span>
+                            <span class="badge bg-white-50 text-white px-2.5 py-1.5 rounded-pill small">
+                                Nền tảng thể thao thế hệ mới 2026
+                            </span>
+                        </div>
+                        <h1 class="display-4 fw-bold brand-font mb-3" style="line-height: 1.15;">
+                            Hệ Thống Đặt Sân & Chuỗi Thể Thao <span class="text-success">Thông Minh Realtime</span>
+                        </h1>
+                        <p class="lead text-white-50 mb-4" style="font-size: 1.15rem; line-height: 1.6;">
+                            Trải nghiệm đặt sân thể thao không bao giờ trùng lịch: Cơ chế khóa ca 15 phút, đồng bộ tức thì bằng <strong>SignalR WebSocket</strong>, quầy thu ngân POS hiện đại và giải pháp điều hành đa chi nhánh.
+                        </p>
+                        <div class="d-flex flex-wrap gap-3">
+                            <a href="#auth-section" class="btn btn-success btn-lg fw-bold rounded-pill px-4 shadow-lg">
+                                <i class="bi bi-person-circle me-2"></i> Đăng Nhập / Đăng Ký Ngay
+                            </a>
+                            <a href="#features-section" class="btn btn-outline-light btn-lg fw-bold rounded-pill px-4">
+                                <i class="bi bi-stars me-2"></i> Khám Phá Tính Năng
+                            </a>
+                        </div>
+
+                        <!-- Highlights Stats -->
+                        <div class="row g-3 mt-4 pt-2 border-top border-white-50">
+                            <div class="col-4">
+                                <h3 class="fw-bold text-warning mb-0">3+</h3>
+                                <small class="text-white-50">Chi nhánh lớn</small>
+                            </div>
+                            <div class="col-4">
+                                <h3 class="fw-bold text-success mb-0">15 Phút</h3>
+                                <small class="text-white-50">Tự động giữ slot</small>
+                            </div>
+                            <div class="col-4">
+                                <h3 class="fw-bold text-info mb-0">100%</h3>
+                                <small class="text-white-50">Realtime WebSocket</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Interactive Quick Card -->
+                    <div class="col-lg-5">
+                        <div class="card border-0 rounded-4 shadow-2xl p-4 bg-white bg-opacity-10 backdrop-blur border border-white-50 text-white">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <span class="badge bg-warning text-dark fw-bold px-3 py-1 rounded-pill">
+                                    <i class="bi bi-trophy-fill me-1"></i> Chuỗi Sân Đạt Chuẩn
+                                </span>
+                                <small class="text-white-50">Hà Nội • TP.HCM</small>
+                            </div>
+                            <h4 class="fw-bold brand-font text-white mb-2">Đa Dạng Bộ Môn Thể Thao</h4>
+                            <p class="small text-white-70 mb-3">Sân Cầu Lông thảm Yonex, Sân Pickleball cao cấp, Sân Tennis chuẩn ITF & Sân Bóng Đá Cỏ Nhân Tạo.</p>
+                            
+                            <div class="list-group list-group-flush bg-transparent">
+                                <div class="list-group-item bg-transparent text-white px-0 py-2 border-white-50 d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-check2-circle text-success me-2"></i>SportChain Cầu Giấy (12 Dịch Vọng Hậu)</span>
+                                    <span class="badge bg-success-subtle text-success">Đang mở</span>
+                                </div>
+                                <div class="list-group-item bg-transparent text-white px-0 py-2 border-white-50 d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-check2-circle text-success me-2"></i>SportChain Hai Bà Trưng (45 Đại Cồ Việt)</span>
+                                    <span class="badge bg-success-subtle text-success">Đang mở</span>
+                                </div>
+                                <div class="list-group-item bg-transparent text-white px-0 py-2 border-transparent d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-check2-circle text-success me-2"></i>SportChain Đống Đa (88 Thái Hà)</span>
+                                    <span class="badge bg-success-subtle text-success">Đang mở</span>
+                                </div>
+                            </div>
+
+                            <a href="#auth-section" class="btn btn-warning fw-bold rounded-pill w-100 mt-3 text-dark">
+                                Đặt Sân Ngay Bây Giờ <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AUTH SECTION: ĐĂNG NHẬP & ĐĂNG KÝ -->
+        <div id="auth-section" class="container py-5">
+            <div class="row justify-content-center">
+                <div class="col-lg-10 col-xl-9">
+                    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                        <div class="row g-0">
+                            <!-- Left Tab Panel -->
+                            <div class="col-md-5 p-4 p-lg-5 text-white d-flex flex-column justify-content-between" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2 mb-3">
+                                        <i class="bi bi-trophy-fill text-warning fs-3"></i>
+                                        <h4 class="fw-bold brand-font mb-0 text-white">SportChain ID</h4>
+                                    </div>
+                                    <p class="text-white-50 small mb-4">
+                                        Một tài khoản duy nhất để đặt sân, quét mã QR Check-in hoặc điều hành chi nhánh trong toàn hệ thống.
+                                    </p>
+
+                                    <!-- Quick 1-Click Login for Evaluators & Testing -->
+                                    <div class="p-3 rounded-4 bg-white bg-opacity-10 border border-white-50 mb-3">
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <span class="small fw-bold text-warning text-uppercase" style="font-size: 0.75rem;">
+                                                <i class="bi bi-lightning-charge-fill me-1"></i> Test Nhanh 1-Click
+                                            </span>
+                                            <span class="badge bg-secondary text-white" style="font-size: 0.65rem;">Pass: 123456</span>
+                                        </div>
+                                        <div class="d-grid gap-1.5">
+                                            <button class="btn btn-sm btn-outline-light text-start py-1.5 rounded-3 d-flex align-items-center justify-content-between"
+                                                    @onclick='() => QuickLogin("admin@sportchain.vn")'>
+                                                <span class="small fw-semibold"><i class="bi bi-shield-lock-fill text-danger me-1"></i> SuperAdmin</span>
+                                                <i class="bi bi-chevron-right small text-white-50"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-light text-start py-1.5 rounded-3 d-flex align-items-center justify-content-between"
+                                                    @onclick='() => QuickLogin("manager.caugiay@sportchain.vn")'>
+                                                <span class="small fw-semibold"><i class="bi bi-building text-primary me-1"></i> Quản Lý Chi Nhánh</span>
+                                                <i class="bi bi-chevron-right small text-white-50"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-light text-start py-1.5 rounded-3 d-flex align-items-center justify-content-between"
+                                                    @onclick='() => QuickLogin("reception.caugiay@sportchain.vn")'>
+                                                <span class="small fw-semibold"><i class="bi bi-headset text-warning me-1"></i> Lễ Tân Cầu Giấy</span>
+                                                <i class="bi bi-chevron-right small text-white-50"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-light text-start py-1.5 rounded-3 d-flex align-items-center justify-content-between"
+                                                    @onclick='() => QuickLogin("khachhang@gmail.com")'>
+                                                <span class="small fw-semibold"><i class="bi bi-person-fill text-success me-1"></i> Khách Hàng</span>
+                                                <i class="bi bi-chevron-right small text-white-50"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="small text-white-50">
+                                    <i class="bi bi-shield-check me-1 text-success"></i> Bảo mật đa lớp JWT & SHA-256
+                                </div>
+                            </div>
+
+                            <!-- Right Form: Login / Register Tabs -->
+                            <div class="col-md-7 p-4 p-lg-5 bg-white">
+                                <!-- Tabs Switcher -->
+                                <ul class="nav nav-pills nav-fill bg-light p-1 rounded-pill mb-4">
+                                    <li class="nav-item">
+                                        <button class="nav-link rounded-pill fw-bold @(activeTab == "login" ? "active bg-success text-white shadow-sm" : "text-muted")"
+                                                @onclick='() => activeTab = "login"'>
+                                            <i class="bi bi-box-arrow-in-right me-1"></i> Đăng Nhập
+                                        </button>
+                                    </li>
+                                    <li class="nav-item">
+                                        <button class="nav-link rounded-pill fw-bold @(activeTab == "register" ? "active bg-success text-white shadow-sm" : "text-muted")"
+                                                @onclick='() => activeTab = "register"'>
+                                            <i class="bi bi-person-plus me-1"></i> Đăng Ký Tài Khoản
+                                        </button>
+                                    </li>
+                                </ul>
+
+                                @if (!string.IsNullOrEmpty(authMessage))
+                                {
+                                    <div class="alert @(authSuccess ? "alert-success" : "alert-danger") py-2 small rounded-3 mb-3">
+                                        @authMessage
+                                    </div>
+                                }
+
+                                @if (activeTab == "login")
+                                {
+                                    <!-- TAB ĐĂNG NHẬP -->
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold text-secondary">Email Tài Khoản</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-envelope text-muted"></i></span>
+                                            <input type="email" class="form-control border-start-0" placeholder="admin@sportchain.vn hoặc email của bạn" @bind="loginRequest.Email" />
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold text-secondary">Mật Khẩu</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-key text-muted"></i></span>
+                                            <input type="password" class="form-control border-start-0" placeholder="••••••••" @bind="loginRequest.Password" />
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="rememberMe" checked />
+                                            <label class="form-check-label small text-muted" for="rememberMe">Ghi nhớ đăng nhập</label>
+                                        </div>
+                                        <a href="#auth-section" class="small text-decoration-none text-success" @onclick='() => activeTab = "register"'>Chưa có tài khoản?</a>
+                                    </div>
+                                    <button class="btn btn-success fw-bold rounded-pill w-100 py-2.5 shadow-sm" @onclick="HandleLogin" disabled="@isAuthenticating">
+                                        @if (isAuthenticating)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                            <span>Đang xác thực...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-box-arrow-in-right me-1"></i>
+                                            <span>Đăng Nhập Vào Hệ Thống</span>
+                                        }
+                                    </button>
+                                }
+                                else
+                                {
+                                    <!-- TAB ĐĂNG KÝ (DÀNH CHO KHÁCH HÀNG) -->
+                                    <div class="alert alert-warning border-0 rounded-3 py-2 px-3 small mb-3">
+                                        <i class="bi bi-exclamation-triangle-fill me-1 text-warning"></i>
+                                        <strong>Lưu ý phân quyền:</strong> Form này dành cho <strong>Khách hàng</strong> đăng ký đặt sân. Tài khoản Quản trị (Admin) và Quản lý cơ sở (BranchManager) được phân quyền tại trang Quản trị chuỗi.
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-semibold text-secondary">Họ và Tên</label>
+                                        <input type="text" class="form-control rounded-3" placeholder="Ví dụ: Nguyễn Văn Khách" @bind="registerRequest.FullName" />
+                                    </div>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">Email</label>
+                                            <input type="email" class="form-control rounded-3" placeholder="email@gmail.com" @bind="registerRequest.Email" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">Số Điện Thoại</label>
+                                            <input type="tel" class="form-control rounded-3" placeholder="0988..." @bind="registerRequest.PhoneNumber" />
+                                        </div>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="form-label small fw-semibold text-secondary">Mật Khẩu</label>
+                                        <input type="password" class="form-control rounded-3" placeholder="Tối thiểu 6 ký tự" @bind="registerRequest.Password" />
+                                    </div>
+                                    <button class="btn btn-success fw-bold rounded-pill w-100 py-2.5 shadow-sm" @onclick="HandleRegister" disabled="@isAuthenticating">
+                                        @if (isAuthenticating)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                            <span>Đang tạo tài khoản...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-check-circle-fill me-1"></i>
+                                            <span>Đăng Ký Tài Khoản Khách Hàng</span>
+                                        }
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FEATURES SECTION: 4 VAI TRÒ & MÔI TRƯỜNG LÀM VIỆC -->
+        <div id="features-section" class="container py-5 border-top">
+            <div class="text-center max-w-xl mx-auto mb-5">
+                <span class="badge bg-success-subtle text-success px-3 py-1 rounded-pill fw-semibold text-uppercase">
+                    Kiến Trúc Đa Môi Trường
+                </span>
+                <h2 class="display-6 fw-bold brand-font text-dark mt-2">Trải Nghiệm Khác Biệt Cho Từng Vai Trò</h2>
+                <p class="text-muted">Mỗi vị trí được trang bị giao diện và công cụ vận hành chuyên biệt tối đa hiệu quả.</p>
+            </div>
+
+            <div class="row g-4">
+                <!-- 1. Customer -->
+                <div class="col-md-6 col-lg-3">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 p-4 text-center">
+                        <div class="d-inline-flex p-3 rounded-circle bg-success-subtle text-success mx-auto mb-3 fs-3">
+                            <i class="bi bi-calendar2-range-fill"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark">1. Khách Hàng</h5>
+                        <p class="small text-muted mb-0">
+                            Giao diện Google Calendar trực quan, khóa ca 15 phút chống trùng lịch, tính cọc 30% và xuất vé QR check-in tiện lợi.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 2. Receptionist -->
+                <div class="col-md-6 col-lg-3">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 p-4 text-center">
+                        <div class="d-inline-flex p-3 rounded-circle bg-warning-subtle text-warning-emphasis mx-auto mb-3 fs-3">
+                            <i class="bi bi-pc-display"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark">2. Quầy Lễ Tân POS</h5>
+                        <p class="small text-muted mb-0">
+                            Check-in QR khách trong khung giờ quy định, tạo đơn khách vãng lai, bán đồ uống, cho thuê vợt và in hóa đơn K80 tức thì.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 3. Branch Manager -->
+                <div class="col-md-6 col-lg-3">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 p-4 text-center">
+                        <div class="d-inline-flex p-3 rounded-circle bg-primary-subtle text-primary mx-auto mb-3 fs-3">
+                            <i class="bi bi-buildings-fill"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark">3. Quản Lý Chi Nhánh</h5>
+                        <p class="small text-muted mb-0">
+                            Bàn điều hành cơ sở: Kiểm soát các sân con, công suất giờ vàng cao điểm, doanh thu chi nhánh và phân ca trực nhân viên.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 4. SuperAdmin -->
+                <div class="col-md-6 col-lg-3">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 p-4 text-center">
+                        <div class="d-inline-flex p-3 rounded-circle bg-danger-subtle text-danger mx-auto mb-3 fs-3">
+                            <i class="bi bi-shield-fill-check"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark">4. Quản Trị Hệ Thống</h5>
+                        <p class="small text-muted mb-0">
+                            Dashboard giám sát toàn chuỗi, cấp phép cơ sở mới, phân quyền cấp tài khoản Quản lý/Lễ tân và kiểm tra Audit Logs.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="bg-dark text-white py-4 border-top border-secondary">
+            <div class="container text-center">
+                <p class="mb-1 fw-bold brand-font fs-5 text-success">SportChain - Nền Tảng Chuỗi Sân Thể Thao Thông Minh</p>
+                <p class="small text-white-50 mb-0">Đồ án Lập Trình Trực Quan (.NET 8 Blazor WebAssembly + ASP.NET Core Web API + SignalR Realtime) © 2026</p>
+            </div>
+        </footer>
+    </div>
+}
+
+@code {
+    private string activeTab = "login";
+    private LoginRequest loginRequest = new() { Email = "admin@sportchain.vn", Password = "123456" };
+    private RegisterRequest registerRequest = new();
+    private bool isAuthenticating = false;
+    private string? authMessage = null;
+    private bool authSuccess = false;
+
+    protected override void OnInitialized()
+    {
+        ApiService.OnAuthStateChanged += StateHasChanged;
+    }
+
+    private async Task HandleLogin()
+    {
+        authMessage = null;
+        if (string.IsNullOrWhiteSpace(loginRequest.Email) || string.IsNullOrWhiteSpace(loginRequest.Password))
+        {
+            authMessage = "Vui lòng nhập đầy đủ email và mật khẩu.";
+            authSuccess = false;
+            return;
+        }
+
+        isAuthenticating = true;
+        var res = await ApiService.LoginAsync(loginRequest);
+        isAuthenticating = false;
+
+        if (res.Success && res.Data != null)
+        {
+            authSuccess = true;
+            authMessage = "Đăng nhập thành công! Đang chuyển hướng...";
+            RedirectAfterAuth(res.Data.Role);
+        }
+        else
+        {
+            authSuccess = false;
+            authMessage = res.Message ?? "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.";
+        }
+    }
+
+    private async Task QuickLogin(string email)
+    {
+        loginRequest.Email = email;
+        loginRequest.Password = "123456";
+        await HandleLogin();
+    }
+
+    private async Task HandleRegister()
+    {
+        authMessage = null;
+        if (string.IsNullOrWhiteSpace(registerRequest.FullName) || string.IsNullOrWhiteSpace(registerRequest.Email) || string.IsNullOrWhiteSpace(registerRequest.Password))
+        {
+            authMessage = "Vui lòng nhập đầy đủ họ tên, email và mật khẩu.";
+            authSuccess = false;
+            return;
+        }
+
+        isAuthenticating = true;
+        var res = await ApiService.RegisterAsync(registerRequest);
+        isAuthenticating = false;
+
+        if (res.Success && res.Data != null)
+        {
+            authSuccess = true;
+            authMessage = "Đăng ký thành công! Đang chuyển đến ma trận đặt sân...";
+            RedirectAfterAuth(UserRole.Customer);
+        }
+        else
+        {
+            authSuccess = false;
+            authMessage = res.Message ?? "Đăng ký thất bại. Email có thể đã tồn tại.";
+        }
+    }
+
+    private void RedirectAfterAuth(UserRole role)
+    {
+        switch (role)
+        {
+            case UserRole.SuperAdmin:
+                Navigation.NavigateTo("admin/dashboard");
+                break;
+            case UserRole.BranchManager:
+                Navigation.NavigateTo("branch/dashboard");
+                break;
+            case UserRole.Receptionist:
+                Navigation.NavigateTo("branch/pos");
+                break;
+            default:
+                Navigation.NavigateTo("booking/matrix");
+                break;
+        }
+    }
+
+    private void NavigateToRoleWorkspace()
+    {
+        if (ApiService.CurrentUser != null)
+        {
+            RedirectAfterAuth(ApiService.CurrentUser.Role);
+        }
+    }
+
+    private void HandleLogout()
+    {
+        ApiService.Logout();
+        StateHasChanged();
+    }
+
+    private string GetRoleColorHex(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.SuperAdmin => "#b91c1c",
+            UserRole.BranchManager => "#1d4ed8",
+            UserRole.Receptionist => "#b45309",
+            _ => "#047857"
+        };
+    }
+
+    private string GetRoleBadgeText(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.SuperAdmin => "👑 SuperAdmin Toàn Hệ Thống",
+            UserRole.BranchManager => "🏢 Quản Lý Chi Nhánh",
+            UserRole.Receptionist => "🎧 Nhân Viên Lễ Tân & Thu Ngân",
+            _ => "👤 Khách Hàng Thể Thao"
+        };
+    }
+
+    private string GetRoleIcon(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.SuperAdmin => "bi bi-shield-fill-check",
+            UserRole.BranchManager => "bi bi-building-fill",
+            UserRole.Receptionist => "bi bi-headset",
+            _ => "bi bi-person-fill"
+        };
+    }
+}

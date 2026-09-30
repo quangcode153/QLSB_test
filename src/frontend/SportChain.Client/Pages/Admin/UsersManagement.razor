@@ -1,0 +1,426 @@
+@page "/admin/users"
+@inject SportChain.Client.Services.IApiService ApiService
+@inject NavigationManager Navigation
+@using SportChain.Shared.DTOs.Admin
+@using SportChain.Shared.DTOs.Courts
+@using SportChain.Shared.Enums
+
+<PageTitle>Quản Trị Nhân Sự & Phân Quyền | SportChain</PageTitle>
+
+@if (ApiService.CurrentUser?.Role != UserRole.SuperAdmin)
+{
+    <div class="container py-5 text-center">
+        <div class="sport-card p-5 mx-auto" style="max-width: 600px;">
+            <i class="bi bi-shield-lock-fill text-danger display-1 mb-3"></i>
+            <h3 class="fw-bold text-danger">Khu Vực Hạn Chế Truy Cập</h3>
+            <p class="text-muted">Trang quản trị nhân sự và cấp phát tài khoản nội bộ chỉ dành riêng cho <strong>SuperAdmin (Quản trị viên toàn chuỗi)</strong>.</p>
+            <a href="/" class="btn btn-outline-secondary rounded-pill px-4 mt-2">
+                <i class="bi bi-arrow-left me-1"></i> Trở Về Trang Chủ
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid px-3 py-3">
+        <!-- Header -->
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge bg-danger-subtle text-danger px-2.5 py-1 rounded-pill fw-semibold">
+                        <i class="bi bi-shield-check"></i> SuperAdmin Control
+                    </span>
+                    <span class="badge bg-light text-muted border px-2 py-0.5 rounded-pill">Sprint 4</span>
+                </div>
+                <h2 class="fw-bold brand-font mb-0 text-dark">Quản Trị Nhân Sự & Phân Quyền Chuỗi</h2>
+                <small class="text-muted">Khởi tạo và kiểm soát quyền hạn Quản lý chi nhánh (BranchManager), Lễ tân (Receptionist) và Khách hàng.</small>
+            </div>
+            <div>
+                <button class="btn btn-danger fw-bold rounded-pill px-4 shadow-sm" @onclick="OpenCreateModal">
+                    <i class="bi bi-person-plus-fill me-1"></i> Thêm Nhân Sự Mới
+                </button>
+            </div>
+        </div>
+
+        <!-- Banner Giải thích phân quyền -->
+        <div class="alert alert-info border-0 rounded-4 shadow-sm mb-4 d-flex align-items-start gap-3 p-3">
+            <i class="bi bi-info-circle-fill text-info fs-3 mt-1"></i>
+            <div>
+                <h6 class="fw-bold mb-1">Quy định luồng cấp phát tài khoản hệ thống:</h6>
+                <ul class="mb-0 small text-secondary ps-3">
+                    <li><strong>Khách Hàng (Customer):</strong> Tự do đăng ký trực tuyến tại Landing Page / Form đăng ký bên ngoài.</li>
+                    <li><strong>Quản Lý Chi Nhánh & Lễ Tân:</strong> Được tạo tập trung tại màn hình này bởi SuperAdmin, gắn trực tiếp với Chi nhánh phụ trách để đảm bảo phân quyền tách biệt dữ liệu giữa các cơ sở.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Filters & Search -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body p-3">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" class="form-control bg-light border-0" placeholder="Tìm theo tên, email hoặc số điện thoại..." @bind="searchQuery" @bind:event="oninput" @onkeyup="HandleSearchKey" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select bg-light border-0" @bind="selectedRoleFilter" @bind:after="LoadUsersAsync">
+                            <option value="">-- Tất cả vai trò --</option>
+                            <option value="@UserRole.SuperAdmin">Quản trị viên (SuperAdmin)</option>
+                            <option value="@UserRole.BranchManager">Quản lý cơ sở (BranchManager)</option>
+                            <option value="@UserRole.Receptionist">Lễ tân (Receptionist)</option>
+                            <option value="@UserRole.Customer">Khách hàng (Customer)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 text-md-end">
+                        <button class="btn btn-outline-secondary rounded-pill w-100" @onclick="LoadUsersAsync">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Làm Mới Dữ Liệu
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="card-body p-0">
+                @if (isLoading)
+                {
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-danger" role="status"></div>
+                        <p class="text-muted mt-2 mb-0">Đang tải danh sách tài khoản...</p>
+                    </div>
+                }
+                else if (users == null || !users.Any())
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-people display-4 text-muted mb-2"></i>
+                        <p class="text-muted mb-0">Không tìm thấy tài khoản nào khớp với tiêu chí tìm kiếm.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light text-muted small text-uppercase">
+                                <tr>
+                                    <th class="ps-4">Họ và Tên / Email</th>
+                                    <th>Số Điện Thoại</th>
+                                    <th>Vai Trò (Role)</th>
+                                    <th>Cơ Sở Làm Việc</th>
+                                    <th>Trạng Thái</th>
+                                    <th>Ngày Tạo</th>
+                                    <th class="text-end pe-4">Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var user in users)
+                                {
+                                    <tr>
+                                        <td class="ps-4">
+                                            <div class="d-flex align-items-center gap-3">
+                                                <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm"
+                                                     style="width: 40px; height: 40px; background: @GetAvatarColor(user.Role);">
+                                                    @GetInitials(user.FullName)
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold text-dark">@user.FullName</div>
+                                                    <small class="text-muted">@user.Email</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="text-secondary small">@(string.IsNullOrEmpty(user.PhoneNumber) ? "--" : user.PhoneNumber)</span>
+                                        </td>
+                                        <td>
+                                            @switch (user.Role)
+                                            {
+                                                case UserRole.SuperAdmin:
+                                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-1">
+                                                        <i class="bi bi-shield-fill-check me-1"></i> SuperAdmin
+                                                    </span>
+                                                    break;
+                                                case UserRole.BranchManager:
+                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1">
+                                                        <i class="bi bi-building-fill me-1"></i> BranchManager
+                                                    </span>
+                                                    break;
+                                                case UserRole.Receptionist:
+                                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2.5 py-1">
+                                                        <i class="bi bi-headset me-1"></i> Receptionist
+                                                    </span>
+                                                    break;
+                                                default:
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1">
+                                                        <i class="bi bi-person-fill me-1"></i> Customer
+                                                    </span>
+                                                    break;
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark border">
+                                                <i class="bi bi-geo-alt me-1 text-muted"></i>
+                                                @(user.BranchName ?? "Toàn hệ thống")
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @if (user.IsActive)
+                                            {
+                                                <span class="badge bg-success text-white rounded-pill px-2 py-1 small">
+                                                    <i class="bi bi-check-circle-fill me-1"></i> Hoạt động
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary text-white rounded-pill px-2 py-1 small">
+                                                    <i class="bi bi-lock-fill me-1"></i> Tạm khóa
+                                                </span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">@user.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            @if (user.Role != UserRole.SuperAdmin)
+                                            {
+                                                <button class="btn btn-sm @(user.IsActive ? "btn-outline-danger" : "btn-outline-success") rounded-pill px-3"
+                                                        @onclick="() => ToggleUserStatus(user)">
+                                                    <i class="bi @(user.IsActive ? "bi-lock" : "bi-unlock") me-1"></i>
+                                                    @(user.IsActive ? "Khóa" : "Mở")
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Thêm Nhân Sự Mới -->
+    @if (showCreateModal)
+    {
+        <div class="modal show d-block" tabindex="-1" style="background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg rounded-4">
+                    <div class="modal-header border-bottom-0 pb-0">
+                        <h5 class="modal-title fw-bold brand-font text-dark">
+                            <i class="bi bi-person-plus-fill text-danger me-2"></i> Khởi Tạo Tài Khoản Nhân Sự
+                        </h5>
+                        <button type="button" class="btn-close" @onclick="CloseCreateModal"></button>
+                    </div>
+                    <div class="modal-body pt-3">
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger py-2 small rounded-3">@errorMessage</div>
+                        }
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary">Họ và Tên Nhân Viên <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control rounded-3" placeholder="Ví dụ: Nguyễn Văn A" @bind="newStaff.FullName" />
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold text-secondary">Email Đăng Nhập <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control rounded-3" placeholder="nhanvien@sportchain.vn" @bind="newStaff.Email" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold text-secondary">Số Điện Thoại</label>
+                                <input type="tel" class="form-control rounded-3" placeholder="0988..." @bind="newStaff.PhoneNumber" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary">Mật Khẩu Khởi Tạo <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control rounded-3" placeholder="Tối thiểu 6 ký tự" @bind="newStaff.Password" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary">Vai Trò Đảm Nhận <span class="text-danger">*</span></label>
+                            <select class="form-select rounded-3" @bind="newStaff.Role">
+                                <option value="@UserRole.BranchManager">Quản lý cơ sở (BranchManager)</option>
+                                <option value="@UserRole.Receptionist">Nhân viên lễ tân / Thu ngân (Receptionist)</option>
+                                <option value="@UserRole.SuperAdmin">Quản trị viên toàn chuỗi (SuperAdmin)</option>
+                            </select>
+                        </div>
+
+                        @if (newStaff.Role == UserRole.BranchManager || newStaff.Role == UserRole.Receptionist)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-secondary">Cơ Sở / Chi Nhánh Làm Việc <span class="text-danger">*</span></label>
+                                <select class="form-select rounded-3" @bind="newStaff.BranchId">
+                                    <option value="">-- Chọn chi nhánh phân công --</option>
+                                    @if (branches != null)
+                                    {
+                                        @foreach (var b in branches)
+                                        {
+                                            <option value="@b.Id">@b.Name (@b.City)</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                        }
+                    </div>
+                    <div class="modal-footer border-top-0 pt-0">
+                        <button type="button" class="btn btn-light rounded-pill px-4" @onclick="CloseCreateModal">Hủy Bỏ</button>
+                        <button type="button" class="btn btn-danger fw-bold rounded-pill px-4" @onclick="HandleCreateStaff" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                <span>Đang tạo...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-circle me-1"></i>
+                                <span>Xác Nhận Cấp Tài Khoản</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<UserDto>? users;
+    private List<BranchDto>? branches;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string searchQuery = "";
+    private string? selectedRoleFilter = "";
+    private bool showCreateModal = false;
+    private string? errorMessage = null;
+
+    private CreateStaffRequest newStaff = new()
+    {
+        Role = UserRole.BranchManager
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (ApiService.CurrentUser?.Role == UserRole.SuperAdmin)
+        {
+            await Task.WhenAll(LoadUsersAsync(), LoadBranchesAsync());
+        }
+    }
+
+    private async Task LoadBranchesAsync()
+    {
+        var res = await ApiService.GetBranchesAsync(onlyApproved: false);
+        if (res.Success && res.Data != null)
+        {
+            branches = res.Data;
+            if (newStaff.BranchId == null && branches.Any())
+            {
+                newStaff.BranchId = branches.First().Id;
+            }
+        }
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        isLoading = true;
+        UserRole? roleParam = null;
+        if (!string.IsNullOrEmpty(selectedRoleFilter) && Enum.TryParse<UserRole>(selectedRoleFilter, out var r))
+        {
+            roleParam = r;
+        }
+
+        var res = await ApiService.GetUsersAsync(searchQuery, roleParam);
+        if (res.Success && res.Data != null)
+        {
+            users = res.Data;
+        }
+        isLoading = false;
+    }
+
+    private async Task HandleSearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await LoadUsersAsync();
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        errorMessage = null;
+        newStaff = new CreateStaffRequest
+        {
+            Role = UserRole.BranchManager,
+            BranchId = branches?.FirstOrDefault()?.Id,
+            Password = "DefaultPassword123@"
+        };
+        showCreateModal = true;
+    }
+
+    private void CloseCreateModal()
+    {
+        showCreateModal = false;
+    }
+
+    private async Task HandleCreateStaff()
+    {
+        errorMessage = null;
+        if (string.IsNullOrWhiteSpace(newStaff.FullName) || string.IsNullOrWhiteSpace(newStaff.Email) || string.IsNullOrWhiteSpace(newStaff.Password))
+        {
+            errorMessage = "Vui lòng nhập đầy đủ họ tên, email và mật khẩu.";
+            return;
+        }
+
+        if ((newStaff.Role == UserRole.BranchManager || newStaff.Role == UserRole.Receptionist) && newStaff.BranchId == null)
+        {
+            errorMessage = "Vui lòng chỉ định cơ sở làm việc cho nhân sự này.";
+            return;
+        }
+
+        isSubmitting = true;
+        var res = await ApiService.CreateStaffAsync(newStaff);
+        isSubmitting = false;
+
+        if (res.Success)
+        {
+            showCreateModal = false;
+            await LoadUsersAsync();
+        }
+        else
+        {
+            errorMessage = res.Message ?? "Đã xảy ra lỗi khi tạo tài khoản.";
+        }
+    }
+
+    private async Task ToggleUserStatus(UserDto user)
+    {
+        var res = await ApiService.ToggleUserStatusAsync(user.Id);
+        if (res.Success)
+        {
+            user.IsActive = !user.IsActive;
+            StateHasChanged();
+        }
+    }
+
+    private string GetAvatarColor(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.SuperAdmin => "#dc2626",
+            UserRole.BranchManager => "#2563eb",
+            UserRole.Receptionist => "#d97706",
+            _ => "#10b981"
+        };
+    }
+
+    private string GetInitials(string fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "U";
+        var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0][0].ToString().ToUpper();
+        return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+    }
+}

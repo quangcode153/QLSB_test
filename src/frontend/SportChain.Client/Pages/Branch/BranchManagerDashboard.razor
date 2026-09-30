@@ -1,0 +1,240 @@
+@page "/branch/dashboard"
+@inject SportChain.Client.Services.IApiService ApiService
+@inject NavigationManager Navigation
+@using SportChain.Shared.DTOs.Courts
+@using SportChain.Shared.DTOs.Bookings
+@using SportChain.Shared.Enums
+
+<PageTitle>Bàn Làm Việc Quản Lý Cơ Sở | SportChain</PageTitle>
+
+@if (ApiService.CurrentUser?.Role != UserRole.BranchManager && ApiService.CurrentUser?.Role != UserRole.SuperAdmin)
+{
+    <div class="container py-5 text-center">
+        <div class="sport-card p-5 mx-auto" style="max-width: 600px;">
+            <i class="bi bi-building-lock text-primary display-1 mb-3"></i>
+            <h3 class="fw-bold text-primary">Không Có Quyền Quản Lý Cơ Sở</h3>
+            <p class="text-muted">Trang làm việc này dành riêng cho <strong>Quản Lý Chi Nhánh (BranchManager)</strong>.</p>
+            <a href="/" class="btn btn-outline-secondary rounded-pill px-4 mt-2">
+                <i class="bi bi-arrow-left me-1"></i> Trở Về Trang Chủ
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid px-3 py-3">
+        <!-- Header Chi Nhánh -->
+        <div class="sport-card p-4 mb-4 text-white" style="background: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%);">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge bg-white text-primary px-3 py-1 rounded-pill fw-bold">
+                            <i class="bi bi-shield-check"></i> BRANCH MANAGER WORKSPACE
+                        </span>
+                        <span class="badge bg-white-50 text-white px-2 py-1 rounded-pill">Realtime Operations</span>
+                    </div>
+                    <h2 class="fw-bold brand-font mb-1 text-white">@(currentBranch?.Name ?? "Chi Nhánh Đang Tải...")</h2>
+                    <p class="mb-0 text-white-50 small">
+                        <i class="bi bi-geo-alt-fill me-1"></i> @(currentBranch?.Address ?? "Đang tải địa chỉ...") • 
+                        <i class="bi bi-telephone-fill ms-2 me-1"></i> @(currentBranch?.PhoneNumber ?? "Hotline") • 
+                        <i class="bi bi-clock-fill ms-2 me-1"></i> @(currentBranch?.OpenTimeLabel ?? "06:00") - @(currentBranch?.CloseTimeLabel ?? "23:00")
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="branch/pos" class="btn btn-warning fw-bold rounded-pill px-3 shadow-sm text-dark">
+                        <i class="bi bi-pc-display me-1"></i> Vào Quầy POS
+                    </a>
+                    <a href="booking/matrix" class="btn btn-outline-light fw-bold rounded-pill px-3">
+                        <i class="bi bi-grid-3x3-gap-fill me-1"></i> Ma Trận Sân
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="text-muted mt-2">Đang tải dữ liệu vận hành cơ sở...</p>
+            </div>
+        }
+        else
+        {
+            <!-- Quick KPI Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6 col-xl-3">
+                    <div class="sport-card p-3 border-start border-primary border-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted text-uppercase fw-semibold" style="font-size: 0.75rem;">Quy Mô Sân</small>
+                                <h3 class="fw-bold mb-0 text-dark">@(courts?.Count ?? 0) <span class="fs-6 fw-normal text-muted">sân thi đấu</span></h3>
+                            </div>
+                            <div class="p-3 bg-primary-subtle text-primary rounded-4 fs-4">
+                                <i class="bi bi-grid-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-sm-6 col-xl-3">
+                    <div class="sport-card p-3 border-start border-success border-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted text-uppercase fw-semibold" style="font-size: 0.75rem;">Sân Đang Sẵn Sàng</small>
+                                <h3 class="fw-bold mb-0 text-success">@(courts?.Count(c => c.Status == SlotStatus.Available) ?? 0)</h3>
+                            </div>
+                            <div class="p-3 bg-success-subtle text-success rounded-4 fs-4">
+                                <i class="bi bi-check-circle-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-sm-6 col-xl-3">
+                    <div class="sport-card p-3 border-start border-warning border-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted text-uppercase fw-semibold" style="font-size: 0.75rem;">Đang Thi Đấu / Có Khách</small>
+                                <h3 class="fw-bold mb-0 text-warning-emphasis">@(courts?.Count(c => c.Status == SlotStatus.InUse || c.Status == SlotStatus.Holding) ?? 0)</h3>
+                            </div>
+                            <div class="p-3 bg-warning-subtle text-warning-emphasis rounded-4 fs-4">
+                                <i class="bi bi-play-circle-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-sm-6 col-xl-3">
+                    <div class="sport-card p-3 border-start border-info border-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted text-uppercase fw-semibold" style="font-size: 0.75rem;">Đơn Đặt Hôm Nay</small>
+                                <h3 class="fw-bold mb-0 text-info">@(todayBookings?.Count ?? 0) <span class="fs-6 fw-normal text-muted">lượt</span></h3>
+                            </div>
+                            <div class="p-3 bg-info-subtle text-info rounded-4 fs-4">
+                                <i class="bi bi-calendar-check-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Court List & Details -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 brand-font text-dark">
+                        <i class="bi bi-diagram-3-fill text-primary me-2"></i> Danh Sách Sân Thuộc Chi Nhánh
+                    </h5>
+                    <span class="badge bg-light text-secondary border px-3 py-1 rounded-pill">
+                        Tự động đồng bộ Realtime
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light text-muted small text-uppercase">
+                                <tr>
+                                    <th class="ps-4">Tên Sân Thể Thao</th>
+                                    <th>Bộ Môn</th>
+                                    <th>Chất Liệu Mặt Sân</th>
+                                    <th>Trạng Thái Hiện Tại</th>
+                                    <th class="text-end pe-4">Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (courts != null)
+                                {
+                                    @foreach (var court in courts)
+                                    {
+                                        <tr>
+                                            <td class="ps-4 fw-bold text-dark">
+                                                <i class="bi bi-tag-fill text-muted me-2"></i> @court.Name
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary-subtle text-primary border rounded-pill px-2.5 py-1">
+                                                    @court.SportType
+                                                </span>
+                                            </td>
+                                            <td class="text-secondary small">
+                                                @(court.SurfaceType ?? "Tiêu chuẩn thi đấu")
+                                            </td>
+                                            <td>
+                                                @switch (court.Status)
+                                                {
+                                                    case SlotStatus.Available:
+                                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1">
+                                                            <i class="bi bi-circle-fill fs-8 me-1"></i> Đang Trống
+                                                        </span>
+                                                        break;
+                                                    case SlotStatus.Holding:
+                                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2.5 py-1">
+                                                            <i class="bi bi-hourglass-split me-1"></i> Tạm Giữ Cọc
+                                                        </span>
+                                                        break;
+                                                    case SlotStatus.InUse:
+                                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-1">
+                                                            <i class="bi bi-person-walking me-1"></i> Đang Chơi
+                                                        </span>
+                                                        break;
+                                                    default:
+                                                        <span class="badge bg-secondary-subtle text-secondary border rounded-pill px-2.5 py-1">
+                                                            @court.Status
+                                                        </span>
+                                                        break;
+                                                }
+                                            </td>
+                                            <td class="text-end pe-4">
+                                                <a href="booking/matrix" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                                    <i class="bi bi-calendar-event me-1"></i> Xem Lịch
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private BranchDto? currentBranch;
+    private List<CourtDto>? courts;
+    private List<BookingDto>? todayBookings;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBranchDataAsync();
+    }
+
+    private async Task LoadBranchDataAsync()
+    {
+        isLoading = true;
+        // Lấy branchId từ người dùng hiện tại hoặc mặc định chi nhánh 1
+        var branchId = ApiService.CurrentUser?.BranchId ?? 1;
+
+        var branchRes = await ApiService.GetBranchByIdAsync(branchId);
+        if (branchRes.Success && branchRes.Data != null)
+        {
+            currentBranch = branchRes.Data;
+        }
+
+        var courtsRes = await ApiService.GetCourtsByBranchAsync(branchId);
+        if (courtsRes.Success && courtsRes.Data != null)
+        {
+            courts = courtsRes.Data;
+        }
+
+        var bookingsRes = await ApiService.GetBranchBookingsAsync(branchId, DateOnly.FromDateTime(DateTime.Today));
+        if (bookingsRes.Success && bookingsRes.Data != null)
+        {
+            todayBookings = bookingsRes.Data;
+        }
+
+        isLoading = false;
+    }
+}
