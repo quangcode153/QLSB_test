@@ -23,7 +23,7 @@ public class Court
     public bool IsActive { get; set; } = true;
 
     [Timestamp]
-    public byte[] RowVersion { get; set; } = null!; // Concurrency Token chống trùng lịch
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>(); // Concurrency Token chống trùng lịch
 
     public ICollection<PriceRule> PriceRules { get; set; } = new List<PriceRule>();
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();

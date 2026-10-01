@@ -1,0 +1,57 @@
+services:
+  # ============================================================================
+  # 1. Database Service: Microsoft SQL Server 2022
+  # ============================================================================
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sportchain-sqlserver
+    restart: unless-stopped
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q \"SELECT 1\" || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -Q \"SELECT 1\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - sportchain-net
+
+  # ============================================================================
+  # 2. Backend Service: ASP.NET Core WebApi (.NET 8.0)
+  # ============================================================================
+  backend:
+    image: quangcode153/sportchain-backend:latest
+    container_name: sportchain-backend
+    restart: unless-stopped
+    ports:
+      - "5097:5097"
+    environment:
+      - DB_SERVER=sqlserver
+      - DB_NAME=${DB_NAME:-SportChainDb}
+      - DB_USER=sa
+      - DB_PASSWORD=${DB_PASSWORD}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5097
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - sportchain-net
+
+# ==============================================================================
+# Persistent Volumes & Network Definitions
+# ==============================================================================
+volumes:
+  mssql-data:
+    driver: local
+
+networks:
+  sportchain-net:
+    driver: bridge

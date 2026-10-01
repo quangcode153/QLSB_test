@@ -1,10 +1,16 @@
 # 1. Bỏ qua tất cả file và thư mục ở thư mục gốc repo
 /*
 
-# 2. Whitelist: Chỉ cho phép .gitignore, file solution và thư mục src/
+# 2. Whitelist: Chỉ cho phép .gitignore, file solution, docker compose, và thư mục mã nguồn
 !.gitignore
 !SportChainManager.slnx
+!docker-compose.yml
+!.dockerignore
+!.env.example
+!push_to_dockerhub.ps1
 !/src/
+!/tests/
+
 
 # 3. Bỏ qua tài liệu, email giả lập, file nháp
 doc/
@@ -26,11 +32,15 @@ scratch/
 .vscode/
 *.DotSettings.user
 
-# 5. Chặn cấu hình môi trường và file bí mật nếu có
+# 5. Chặn cấu hình môi trường, thư mục cấu hình và file bí mật (không bao giờ push lên Git)
 .env
 *.env
+*.env.*
 *.env.local
 .env.*.local
+!.env.example
+[Cc]onfig/
+**/[Cc]onfig/
 
 # 6. Chặn file tạm hệ điều hành và log
 Thumbs.db

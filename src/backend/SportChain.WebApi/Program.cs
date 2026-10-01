@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -44,21 +44,19 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
         : $"Server={dbServer};Database={dbName};User Id={dbUser};Password={dbPass};TrustServerCertificate=True;");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString, sqlOptions =>
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null)));
 
 // 2. Cáº¥u hÃ¬nh CORS CHÃNH XÃC NGUá»’N (Strict Whitelisting)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("SportChainCorsPolicy", policy =>
     {
-        policy.WithOrigins(
-            "http://localhost:5167",
-            "https://localhost:7118",
-            "http://localhost:5001",   // Frontend Web Blazor Local (HTTP)
-            "https://localhost:7001",  // Frontend Web Blazor Local (HTTPS)
-            "http://localhost:8080"    // Frontend Web khi cháº¡y Docker trÃªn WSL
-        )
-        .AllowAnyHeader()
+        policy.SetIsOriginAllowed(_ => true)
+            .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials(); // Báº¯t buá»™c cho káº¿t ná»‘i WebSocket Realtime SignalR
     });
@@ -165,6 +163,7 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<AppDbContext>();
+    await context.Database.MigrateAsync();
     var hasher = services.GetRequiredService<IPasswordHasher>();
     await DbSeeder.SeedAsync(context, hasher);
 }

@@ -10,4 +10,8 @@
   <Folder Name="/src/shared/">
     <Project Path="src/shared/SportChain.Shared/SportChain.Shared.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SportChain.Tests/SportChain.Tests.csproj" />
+  </Folder>
 </Solution>
+

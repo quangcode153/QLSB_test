@@ -43,7 +43,7 @@ public class Booking
     public bool IsRecurring { get; set; } = false; // Lịch định kỳ
 
     [Timestamp]
-    public byte[] RowVersion { get; set; } = null!;
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
     public ICollection<BookingDetail> Details { get; set; } = new List<BookingDetail>();
     public ICollection<BookingServiceItem> ServiceItems { get; set; } = new List<BookingServiceItem>();

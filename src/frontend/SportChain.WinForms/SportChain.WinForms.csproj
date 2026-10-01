@@ -19,4 +19,15 @@
     <PackageReference Include="FontAwesome.Sharp" Version="6.6.0" />
   </ItemGroup>
 
+  <ItemGroup Condition="Exists('Config')">
+    <None Update="Config\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup Condition="Exists('.env')">
+    <None Update=".env">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
