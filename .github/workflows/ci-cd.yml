@@ -111,8 +111,9 @@ jobs:
           docker compose pull backend
 
           echo "=== 3. Khởi chạy / Cập nhật Backend (Dữ liệu DB được bảo toàn) ==="
-          docker compose up -d backend
+          docker compose up -d --remove-orphans backend
 
           echo "=== 4. Kiểm tra các Container đang hoạt động ==="
           docker ps --filter "name=sportchain"
+
 
