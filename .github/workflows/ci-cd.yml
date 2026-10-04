@@ -93,31 +93,26 @@ jobs:
 
   # ==============================================================================
   # GIAI ĐOẠN 3: TỰ ĐỘNG DEPLOY VỀ WSL QUA SELF-HOSTED RUNNER
-  # Runner được cài đặt trên WSL sẽ lắng nghe sự kiện và tự động cập nhật container
+  # Không tải mã nguồn/frontend về máy. Chỉ trỏ vào ~/sportchain-server để pull Docker
   # ==============================================================================
   deploy-wsl:
-    name: 3. Auto Deploy to WSL (Self-Hosted Runner)
+    name: 3. Auto Deploy to WSL (~/sportchain-server)
     needs: [docker-packaging]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: [self-hosted, linux]
 
     steps:
-      - name: Checkout Repository on WSL
-        uses: actions/checkout@v4
-
-      - name: Pull Latest Docker Images on WSL
+      - name: Deploy Backend on WSL
         run: |
-          echo "=== [WSL] Dang keo Image Backend moi nhat ve tu Docker Hub ==="
+          echo "=== 1. Di chuyển vào thư mục server đã có sẵn trên WSL ==="
+          cd ~/sportchain-server
+
+          echo "=== 2. Kéo duy nhất Docker Image Backend mới nhất từ Docker Hub ==="
           docker compose pull backend
 
-      - name: Restart Services with Zero Downtime
-        run: |
-          echo "=== [WSL] Khoi dong lai Backend voi container moi ==="
+          echo "=== 3. Khởi chạy / Cập nhật Backend (Dữ liệu DB được bảo toàn) ==="
           docker compose up -d backend
 
-      - name: Verify Deployment Health Status
-        run: |
-          echo "=== [WSL] Danh sach Container dang hoat dong ==="
+          echo "=== 4. Kiểm tra các Container đang hoạt động ==="
           docker ps --filter "name=sportchain"
-          echo "=== [WSL] Kiem tra ket noi Health Check Backend ==="
-          curl -f http://localhost:5097/swagger/index.html || echo "Backend online"
+
