@@ -8,6 +8,7 @@
 !.dockerignore
 !.env.example
 !push_to_dockerhub.ps1
+!/.github/
 !/src/
 !/tests/
 

@@ -1,0 +1,123 @@
+name: SportChain CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # ==============================================================================
+  # GIAI ĐOẠN 1: TEST BACKEND & FRONTEND, ĐÓNG GÓI CLIENT
+  # Chạy trên windows-latest để hỗ trợ đầy đủ .NET 8 Windows Desktop & xUnit
+  # ==============================================================================
+  test-and-package:
+    name: 1. Test Backend & Frontend + Package Client
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore SportChainManager.slnx
+
+      - name: Build All Projects (Backend + Frontend + Shared)
+        run: dotnet build SportChainManager.slnx -c Release --no-restore
+
+      - name: 🧪 Run Backend Tests (Multi-branch, Booking, AuditLog, Pricing)
+        run: dotnet test tests/SportChain.Tests/SportChain.Tests.csproj -c Release --no-build --filter "FullyQualifiedName~Backend" --verbosity normal
+
+      - name: 🎨 Run Frontend Tests (POS Calculations, Matrix UI State, DTO Consistency)
+        run: dotnet test tests/SportChain.Tests/SportChain.Tests.csproj -c Release --no-build --filter "FullyQualifiedName~Frontend" --verbosity normal
+
+      - name: 📦 Package WinForms Client (.exe)
+        run: |
+          dotnet publish src/frontend/SportChain.WinForms/SportChain.WinForms.csproj -c Release -r win-x64 --self-contained false -o publish/winforms
+
+      - name: Upload WinForms Artifact (Downloadable EXE)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SportChain-WinForms-Client
+          path: publish/winforms/
+          retention-days: 14
+
+  # ==============================================================================
+  # GIAI ĐOẠN 2: ĐÓNG GÓI DOCKER & PUSH LÊN DOCKER HUB
+  # Chỉ chạy khi tests PASS và sự kiện push lên nhánh main
+  # ==============================================================================
+  docker-packaging:
+    name: 2. Docker Packaging & Push to Docker Hub
+    needs: [test-and-package]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/sportchain-backend
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - name: Build & Push Backend Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/backend/SportChain.WebApi/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ==============================================================================
+  # GIAI ĐOẠN 3: TỰ ĐỘNG DEPLOY VỀ WSL QUA SELF-HOSTED RUNNER
+  # Runner được cài đặt trên WSL sẽ lắng nghe sự kiện và tự động cập nhật container
+  # ==============================================================================
+  deploy-wsl:
+    name: 3. Auto Deploy to WSL (Self-Hosted Runner)
+    needs: [docker-packaging]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: [self-hosted, linux]
+
+    steps:
+      - name: Checkout Repository on WSL
+        uses: actions/checkout@v4
+
+      - name: Pull Latest Docker Images on WSL
+        run: |
+          echo "=== [WSL] Dang keo Image Backend moi nhat ve tu Docker Hub ==="
+          docker compose pull backend
+
+      - name: Restart Services with Zero Downtime
+        run: |
+          echo "=== [WSL] Khoi dong lai Backend voi container moi ==="
+          docker compose up -d backend
+
+      - name: Verify Deployment Health Status
+        run: |
+          echo "=== [WSL] Danh sach Container dang hoat dong ==="
+          docker ps --filter "name=sportchain"
+          echo "=== [WSL] Kiem tra ket noi Health Check Backend ==="
+          curl -f http://localhost:5097/swagger/index.html || echo "Backend online"

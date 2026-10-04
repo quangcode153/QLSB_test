@@ -10,7 +10,7 @@ services:
       - "1433:1433"
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=${DB_PASSWORD}
+      - MSSQL_SA_PASSWORD=${DB_PASSWORD:-SportChain@2026!}
     volumes:
       - mssql-data:/var/opt/mssql
     healthcheck:
@@ -35,8 +35,8 @@ services:
       - DB_SERVER=sqlserver
       - DB_NAME=${DB_NAME:-SportChainDb}
       - DB_USER=sa
-      - DB_PASSWORD=${DB_PASSWORD}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - DB_PASSWORD=${DB_PASSWORD:-SportChain@2026!}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-SportChain_Ultra_Secret_Key_For_Jwt_Auth_2026_Secure_Token!}
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5097
     depends_on:
